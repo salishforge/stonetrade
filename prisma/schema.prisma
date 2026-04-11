@@ -1,0 +1,547 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+enum PriceSource {
+  SELLER_LISTING
+  COMPLETED_SALE
+  EBAY_SOLD
+  EBAY_LISTED
+  COMMUNITY_POLL
+  BUYLIST_OFFER
+  MANUAL_REPORT
+  AI_ESTIMATE
+}
+
+enum CardCondition {
+  MINT
+  NEAR_MINT
+  LIGHTLY_PLAYED
+  MODERATELY_PLAYED
+  HEAVILY_PLAYED
+  DAMAGED
+}
+
+enum ListingType {
+  SINGLE
+  BUNDLE
+  MYSTERY_PACK
+  SEALED_PRODUCT
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  RESERVED
+  EXPIRED
+  CANCELLED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  COUNTERED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  DISPUTED
+  REFUNDED
+  CANCELLED
+}
+
+enum PollStatus {
+  ACTIVE
+  CLOSED
+  EXPIRED
+}
+
+enum RevealPolicy {
+  BUYER_CHOICE
+  ALWAYS_REVEAL
+  SELLER_REVEALS
+}
+
+// =============================================================================
+// Game Registry
+// =============================================================================
+
+model Game {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  publisher   String
+  website     String
+  logoUrl     String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  sets  Set[]
+  cards Card[]
+}
+
+model Set {
+  id          String    @id @default(cuid())
+  gameId      String
+  game        Game      @relation(fields: [gameId], references: [id])
+  name        String
+  code        String
+  releaseDate DateTime?
+  totalCards  Int
+  description String?
+
+  cards Card[]
+
+  @@unique([gameId, code])
+}
+
+// =============================================================================
+// Cards
+// =============================================================================
+
+model Card {
+  id     String @id @default(cuid())
+  gameId String
+  game   Game   @relation(fields: [gameId], references: [id])
+  setId  String
+  set    Set    @relation(fields: [setId], references: [id])
+
+  // Identity
+  cardNumber String
+  name       String
+
+  // WoTF-specific
+  orbital String?
+
+  // BJBA-specific
+  athlete         String?
+  teamAffiliation String?
+
+  // Shared attributes
+  rarity      String
+  cardType    String
+  treatment   String
+  buildPoints Int?
+
+  // Serialization
+  isSerialized Boolean @default(false)
+  serialTotal  Int?
+
+  // Media
+  imageUrl     String?
+  imageUrlBack String?
+
+  // Metadata
+  flavorText String?
+  rulesText  String?
+  artist     String?
+
+  // Relations
+  listings        Listing[]
+  priceHistory    PriceDataPoint[]
+  valuePollVotes  ValuePoll[]
+  buylistEntries  BuylistEntry[]
+  collectionCards CollectionCard[]
+  saleReports     SaleReport[]
+  marketValue     CardMarketValue?
+
+  @@unique([setId, cardNumber, treatment])
+  @@index([gameId, name])
+  @@index([rarity])
+  @@index([orbital])
+}
+
+// =============================================================================
+// Price Discovery
+// =============================================================================
+
+model PriceDataPoint {
+  id        String @id @default(cuid())
+  cardId    String
+  card      Card   @relation(fields: [cardId], references: [id])
+
+  source    PriceSource
+  price     Decimal       @db.Decimal(10, 2)
+  condition CardCondition
+  treatment String
+
+  // Source-specific references
+  ebayListingId String?
+  listingId     String?
+  pollId        String?
+  reportedBy    String?
+
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([cardId, createdAt])
+  @@index([source])
+}
+
+model CardMarketValue {
+  id     String @id @default(cuid())
+  cardId String @unique
+  card   Card   @relation(fields: [cardId], references: [id])
+
+  // Composite values (NM default)
+  marketLow  Decimal? @db.Decimal(10, 2)
+  marketMid  Decimal? @db.Decimal(10, 2)
+  marketHigh Decimal? @db.Decimal(10, 2)
+
+  // Signal counts
+  totalSales    Int @default(0)
+  totalListings Int @default(0)
+  totalBuylist  Int @default(0)
+  totalPollVotes Int @default(0)
+
+  // Confidence (0-100)
+  confidence Int @default(0)
+
+  // Trends
+  trend7d  Decimal? @db.Decimal(5, 2)
+  trend30d Decimal? @db.Decimal(5, 2)
+
+  lastUpdated DateTime @default(now())
+
+  @@index([confidence])
+}
+
+// =============================================================================
+// Community Price Polls
+// =============================================================================
+
+model ValuePoll {
+  id        String        @id @default(cuid())
+  cardId    String
+  card      Card          @relation(fields: [cardId], references: [id])
+  treatment String
+  condition CardCondition @default(NEAR_MINT)
+
+  priceRanges Json
+  status      PollStatus @default(ACTIVE)
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  votes ValuePollVote[]
+}
+
+model ValuePollVote {
+  id     String    @id @default(cuid())
+  pollId String
+  poll   ValuePoll @relation(fields: [pollId], references: [id])
+  userId String
+  user   User      @relation(fields: [userId], references: [id])
+
+  selectedRange Int
+  exactEstimate Decimal? @db.Decimal(10, 2)
+  voterWeight   Float    @default(1.0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([pollId, userId])
+}
+
+// =============================================================================
+// Buylist
+// =============================================================================
+
+model Buylist {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+  name     String
+  isPublic Boolean @default(true)
+
+  entries   BuylistEntry[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model BuylistEntry {
+  id        String @id @default(cuid())
+  buylistId String
+  buylist   Buylist @relation(fields: [buylistId], references: [id])
+  cardId    String
+  card      Card   @relation(fields: [cardId], references: [id])
+
+  maxPrice  Decimal       @db.Decimal(10, 2)
+  condition CardCondition @default(NEAR_MINT)
+  treatment String
+  quantity  Int           @default(1)
+
+  autoNotify Boolean @default(true)
+
+  @@unique([buylistId, cardId, treatment, condition])
+}
+
+// =============================================================================
+// Manual Sale Reports
+// =============================================================================
+
+model SaleReport {
+  id         String @id @default(cuid())
+  reporterId String
+  reporter   User   @relation(fields: [reporterId], references: [id])
+  cardId     String
+  card       Card   @relation(fields: [cardId], references: [id])
+
+  price     Decimal       @db.Decimal(10, 2)
+  condition CardCondition
+  treatment String
+  platform  String
+
+  proofUrl   String?
+  verified   Boolean  @default(false)
+  verifiedBy String?
+
+  saleDate  DateTime
+  createdAt DateTime @default(now())
+}
+
+// =============================================================================
+// Marketplace — Listings
+// =============================================================================
+
+model Listing {
+  id       String @id @default(cuid())
+  sellerId String
+  seller   User   @relation("SellerListings", fields: [sellerId], references: [id])
+
+  type   ListingType
+  cardId String?
+  card   Card?      @relation(fields: [cardId], references: [id])
+
+  condition    CardCondition?
+  treatment    String?
+  serialNumber String?
+
+  // Pricing
+  price        Decimal  @db.Decimal(10, 2)
+  currency     String   @default("USD")
+  allowOffers  Boolean  @default(true)
+  minimumOffer Decimal? @db.Decimal(10, 2)
+
+  // Stock
+  quantity     Int @default(1)
+  quantitySold Int @default(0)
+
+  // Media
+  photos String[]
+
+  // Shipping
+  shipsFrom       String?
+  shippingOptions Json?
+
+  status ListingStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  offers      Offer[]
+  orders      Order[]
+  mysteryPack MysteryPack?
+
+  @@index([cardId, status])
+  @@index([sellerId])
+  @@index([type])
+}
+
+// =============================================================================
+// Mystery Packs
+// =============================================================================
+
+model MysteryPack {
+  id        String  @id @default(cuid())
+  listingId String  @unique
+  listing   Listing @relation(fields: [listingId], references: [id])
+
+  name        String
+  description String
+
+  guaranteedMinValue Decimal @db.Decimal(10, 2)
+  cardCount          Int
+
+  tiers        Json
+  revealPolicy RevealPolicy @default(BUYER_CHOICE)
+
+  outcomes MysteryPackOutcome[]
+}
+
+model MysteryPackOutcome {
+  id            String      @id @default(cuid())
+  mysteryPackId String
+  mysteryPack   MysteryPack @relation(fields: [mysteryPackId], references: [id])
+  orderId       String
+
+  contents   Json
+  totalValue Decimal @db.Decimal(10, 2)
+
+  buyerRating  Int?
+  buyerComment String?
+
+  createdAt DateTime @default(now())
+}
+
+// =============================================================================
+// Offers & Negotiation
+// =============================================================================
+
+model Offer {
+  id        String  @id @default(cuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id])
+  buyerId   String
+  buyer     User    @relation(fields: [buyerId], references: [id])
+
+  amount  Decimal @db.Decimal(10, 2)
+  message String?
+
+  status OfferStatus @default(PENDING)
+
+  parentOfferId String?
+  parentOffer   Offer?  @relation("OfferChain", fields: [parentOfferId], references: [id])
+  counterOffers Offer[] @relation("OfferChain")
+
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+}
+
+// =============================================================================
+// Orders & Transactions
+// =============================================================================
+
+model Order {
+  id        String  @id @default(cuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id])
+  buyerId   String
+  buyer     User    @relation("BuyerOrders", fields: [buyerId], references: [id])
+  sellerId  String
+  seller    User    @relation("SellerOrders", fields: [sellerId], references: [id])
+
+  // Financials
+  subtotal    Decimal @db.Decimal(10, 2)
+  shipping    Decimal @db.Decimal(10, 2)
+  platformFee Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+
+  // Stripe
+  stripePaymentIntentId String?
+  stripeTransferId      String?
+
+  // Shipping
+  shippingMethod  String
+  trackingNumber  String?
+  shippingAddress Json
+
+  status OrderStatus @default(PENDING_PAYMENT)
+
+  paidAt      DateTime?
+  shippedAt   DateTime?
+  deliveredAt DateTime?
+  completedAt DateTime?
+
+  buyerRating  Int?
+  sellerRating Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =============================================================================
+// Collection Tracking
+// =============================================================================
+
+model Collection {
+  id       String  @id @default(cuid())
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+  name     String  @default("My Collection")
+  isPublic Boolean @default(false)
+
+  cards CollectionCard[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CollectionCard {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id])
+  cardId       String
+  card         Card       @relation(fields: [cardId], references: [id])
+
+  quantity     Int           @default(1)
+  condition    CardCondition @default(NEAR_MINT)
+  treatment    String
+  serialNumber String?
+
+  acquiredPrice Decimal?  @db.Decimal(10, 2)
+  acquiredDate  DateTime?
+  acquiredFrom  String?
+
+  forTrade    Boolean  @default(false)
+  forSale     Boolean  @default(false)
+  askingPrice Decimal? @db.Decimal(10, 2)
+
+  notes String?
+
+  @@unique([collectionId, cardId, treatment, condition, serialNumber])
+}
+
+// =============================================================================
+// Users & Reputation
+// =============================================================================
+
+model User {
+  id          String  @id @default(cuid())
+  email       String  @unique
+  username    String  @unique
+  displayName String?
+  avatarUrl   String?
+  bio         String?
+
+  country String?
+  region  String?
+
+  sellerRating   Float? @default(0)
+  buyerRating    Float? @default(0)
+  totalSales     Int    @default(0)
+  totalPurchases Int    @default(0)
+  memberSince    DateTime @default(now())
+
+  isVerified      Boolean @default(false)
+  stripeAccountId String?
+  cardeioPlayerId String?
+
+  credibilityScore Float @default(1.0)
+
+  // Relations
+  collections    Collection[]
+  buylists       Buylist[]
+  sellerListings Listing[]       @relation("SellerListings")
+  buyerOrders    Order[]         @relation("BuyerOrders")
+  sellerOrders   Order[]         @relation("SellerOrders")
+  offers         Offer[]
+  pollVotes      ValuePollVote[]
+  saleReports    SaleReport[]
+}
