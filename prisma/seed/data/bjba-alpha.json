@@ -1,0 +1,21 @@
+{
+  "game": {
+    "name": "Bo Jackson Battle Arena",
+    "slug": "bjba",
+    "publisher": "Bo Jackson Battle Arena LLC",
+    "website": "https://bojacksonbattlearena.com"
+  },
+  "set": {
+    "name": "Alpha Edition",
+    "code": "ALPHA",
+    "releaseDate": "2024-09-01",
+    "totalCards": 100
+  },
+  "cards": [
+    { "cardNumber": "#01", "name": "Bo Jackson", "rarity": "SSP", "cardType": "Hero", "athlete": "Bo Jackson", "teamAffiliation": "Raiders/Royals" },
+    { "cardNumber": "#02", "name": "Burrocious", "rarity": "SP", "cardType": "Hero", "athlete": "Burrocious", "teamAffiliation": null },
+    { "cardNumber": "#03", "name": "Stadium Rush", "rarity": "Common", "cardType": "Action", "athlete": null, "teamAffiliation": null },
+    { "cardNumber": "#04", "name": "Power Surge", "rarity": "Uncommon", "cardType": "Support", "athlete": null, "teamAffiliation": null },
+    { "cardNumber": "#05", "name": "MVP Strike", "rarity": "Rare", "cardType": "Action", "athlete": null, "teamAffiliation": null }
+  ]
+}
