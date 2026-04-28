@@ -55,8 +55,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Cannot buy your own listing" }, { status: 400 });
   }
 
+  // Resolve unit price + quantity. By default both come from the listing.
+  // If the buyer is paying for an accepted offer, force quantity to 1 (offers
+  // are per-unit) and use the negotiated amount instead of listing.price.
+  let unitPrice = Number(listing.price);
+  let orderQuantity = input.quantity;
+  let acceptedOfferId: string | null = null;
+
+  if (input.offerId) {
+    const offer = await prisma.offer.findUnique({ where: { id: input.offerId } });
+    if (!offer) {
+      return NextResponse.json({ error: "Offer not found" }, { status: 404 });
+    }
+    if (offer.buyerId !== user.id) {
+      return NextResponse.json({ error: "Offer does not belong to you" }, { status: 403 });
+    }
+    if (offer.listingId !== listing.id) {
+      return NextResponse.json({ error: "Offer is for a different listing" }, { status: 400 });
+    }
+    if (offer.status !== "ACCEPTED") {
+      return NextResponse.json({ error: "Offer is not in an accepted state" }, { status: 409 });
+    }
+    // Each accepted offer can produce only one order (Order.acceptedOfferId is unique).
+    const existing = await prisma.order.findUnique({ where: { acceptedOfferId: offer.id } });
+    if (existing) {
+      return NextResponse.json({ error: "Offer has already been redeemed" }, { status: 409 });
+    }
+
+    unitPrice = Number(offer.amount);
+    orderQuantity = 1;
+    acceptedOfferId = offer.id;
+  }
+
   const available = listing.quantity - listing.quantitySold;
-  if (input.quantity > available) {
+  if (orderQuantity > available) {
     return NextResponse.json({ error: `Only ${available} available` }, { status: 400 });
   }
 
@@ -65,50 +97,26 @@ export async function POST(request: NextRequest) {
   const shippingOption = shippingOptions?.find((o) => o.method === input.shippingMethod);
   const shippingCost = shippingOption?.price ?? 0;
 
-  const subtotal = Number(listing.price) * input.quantity;
+  const subtotal = unitPrice * orderQuantity;
   const platformFee = subtotal * (PLATFORM_FEE_PERCENT / 100);
   const total = subtotal + shippingCost;
 
-  // Create order — in dev mode, auto-mark as PAID (mock Stripe)
   const order = await prisma.order.create({
     data: {
       listingId: listing.id,
       buyerId: user.id,
       sellerId: listing.sellerId,
+      quantity: orderQuantity,
       subtotal,
       shipping: shippingCost,
       platformFee,
       total,
       shippingMethod: input.shippingMethod,
       shippingAddress: input.shippingAddress,
-      status: "PAID", // Mock: skip PENDING_PAYMENT in dev
-      paidAt: new Date(),
+      status: "PENDING_PAYMENT",
+      acceptedOfferId,
     },
   });
-
-  // Update listing sold count
-  await prisma.listing.update({
-    where: { id: listing.id },
-    data: {
-      quantitySold: { increment: input.quantity },
-      status: listing.quantity - listing.quantitySold - input.quantity <= 0 ? "SOLD" : "ACTIVE",
-    },
-  });
-
-  // Record price data point for completed sale
-  if (listing.cardId) {
-    await prisma.priceDataPoint.create({
-      data: {
-        cardId: listing.cardId,
-        source: "COMPLETED_SALE",
-        price: listing.price,
-        condition: listing.condition ?? "NEAR_MINT",
-        treatment: listing.treatment ?? "Classic Paper",
-        listingId: listing.id,
-        verified: true,
-      },
-    });
-  }
 
   return NextResponse.json({ data: order }, { status: 201 });
 }

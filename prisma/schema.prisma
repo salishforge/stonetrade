@@ -72,6 +72,28 @@ enum PollStatus {
   EXPIRED
 }
 
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum AlertType {
+  PRICE_DROP
+  PRICE_SPIKE
+  BACK_IN_STOCK
+  META_SHIFT
+}
+
+enum TradeStatus {
+  PROPOSED
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+  COMPLETED
+  CANCELLED
+}
+
 enum RevealPolicy {
   BUYER_CHOICE
   ALWAYS_REVEAL
@@ -152,6 +174,11 @@ model Card {
   rulesText  String?
   artist     String?
 
+  // Generated tsvector column for full-text search; populated by Postgres
+  // from name + cardNumber + rulesText + flavorText with weighted concat.
+  // Read-only from Prisma's perspective; queried via raw SQL in src/lib/search.
+  searchVector Unsupported("tsvector")?
+
   // Relations
   listings        Listing[]
   priceHistory    PriceDataPoint[]
@@ -160,6 +187,9 @@ model Card {
   collectionCards CollectionCard[]
   saleReports     SaleReport[]
   marketValue     CardMarketValue?
+  engineMetrics   CardEngineMetrics?
+  alerts          UserAlert[]
+  tradeItems      TradeItem[]
 
   @@unique([setId, cardNumber, treatment])
   @@index([gameId, name])
@@ -172,9 +202,9 @@ model Card {
 // =============================================================================
 
 model PriceDataPoint {
-  id        String @id @default(cuid())
-  cardId    String
-  card      Card   @relation(fields: [cardId], references: [id])
+  id     String @id @default(cuid())
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id])
 
   source    PriceSource
   price     Decimal       @db.Decimal(10, 2)
@@ -205,9 +235,9 @@ model CardMarketValue {
   marketHigh Decimal? @db.Decimal(10, 2)
 
   // Signal counts
-  totalSales    Int @default(0)
-  totalListings Int @default(0)
-  totalBuylist  Int @default(0)
+  totalSales     Int @default(0)
+  totalListings  Int @default(0)
+  totalBuylist   Int @default(0)
   totalPollVotes Int @default(0)
 
   // Confidence (0-100)
@@ -217,9 +247,50 @@ model CardMarketValue {
   trend7d  Decimal? @db.Decimal(5, 2)
   trend30d Decimal? @db.Decimal(5, 2)
 
+  // Volatility — absolute price stability over the last 30 days
+  stdDev30d      Decimal? @db.Decimal(10, 2)
+  coeffVar30d    Decimal? @db.Decimal(5, 4)
+  volatilityTier String?
+
+  // Scarcity — supply vs demand snapshot
+  totalWanted    Int      @default(0)
+  totalAvailable Int      @default(0)
+  totalCollected Int      @default(0)
+  scarcityRatio  Decimal? @db.Decimal(8, 4)
+  scarcityTier   String?
+
   lastUpdated DateTime @default(now())
 
   @@index([confidence])
+  @@index([volatilityTier])
+  @@index([scarcityTier])
+}
+
+model CardEngineMetrics {
+  id     String @id @default(cuid())
+  cardId String @unique
+  card   Card   @relation(fields: [cardId], references: [id])
+
+  // Raw inputs cached from wonders-ccg-platform
+  dbsScore            Int?
+  deckInclusionPct    Decimal? @db.Decimal(5, 2)
+  winRateWhenIncluded Decimal? @db.Decimal(5, 2)
+  avgCopiesPlayed     Decimal? @db.Decimal(4, 2)
+  replacementRate     Decimal? @db.Decimal(5, 2)
+
+  // Computed PRI
+  pri           Int?
+  priConfidence Int?
+
+  // Provenance
+  format      String?
+  windowStart DateTime?
+  windowEnd   DateTime?
+
+  lastSyncedAt DateTime @default(now())
+
+  @@index([pri])
+  @@index([deckInclusionPct])
 }
 
 // =============================================================================
@@ -275,11 +346,11 @@ model Buylist {
 }
 
 model BuylistEntry {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   buylistId String
   buylist   Buylist @relation(fields: [buylistId], references: [id])
   cardId    String
-  card      Card   @relation(fields: [cardId], references: [id])
+  card      Card    @relation(fields: [cardId], references: [id])
 
   maxPrice  Decimal       @db.Decimal(10, 2)
   condition CardCondition @default(NEAR_MINT)
@@ -308,7 +379,7 @@ model SaleReport {
   platform  String
 
   proofUrl   String?
-  verified   Boolean  @default(false)
+  verified   Boolean @default(false)
   verifiedBy String?
 
   saleDate  DateTime
@@ -326,7 +397,7 @@ model Listing {
 
   type   ListingType
   cardId String?
-  card   Card?      @relation(fields: [cardId], references: [id])
+  card   Card?       @relation(fields: [cardId], references: [id])
 
   condition    CardCondition?
   treatment    String?
@@ -419,6 +490,8 @@ model Offer {
   parentOffer   Offer?  @relation("OfferChain", fields: [parentOfferId], references: [id])
   counterOffers Offer[] @relation("OfferChain")
 
+  order Order?
+
   expiresAt   DateTime
   createdAt   DateTime  @default(now())
   respondedAt DateTime?
@@ -438,14 +511,20 @@ model Order {
   seller    User    @relation("SellerOrders", fields: [sellerId], references: [id])
 
   // Financials
+  quantity    Int     @default(1)
   subtotal    Decimal @db.Decimal(10, 2)
   shipping    Decimal @db.Decimal(10, 2)
   platformFee Decimal @db.Decimal(10, 2)
   total       Decimal @db.Decimal(10, 2)
 
   // Stripe
-  stripePaymentIntentId String?
-  stripeTransferId      String?
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String?
+  stripeTransferId        String?
+
+  // Origin offer when this order was created from an accepted offer
+  acceptedOfferId String? @unique
+  acceptedOffer   Offer?  @relation(fields: [acceptedOfferId], references: [id])
 
   // Shipping
   shippingMethod  String
@@ -523,15 +602,21 @@ model User {
   country String?
   region  String?
 
-  sellerRating   Float? @default(0)
-  buyerRating    Float? @default(0)
-  totalSales     Int    @default(0)
-  totalPurchases Int    @default(0)
+  role UserRole @default(USER)
+
+  sellerRating   Float?   @default(0)
+  buyerRating    Float?   @default(0)
+  totalSales     Int      @default(0)
+  totalPurchases Int      @default(0)
   memberSince    DateTime @default(now())
 
-  isVerified      Boolean @default(false)
-  stripeAccountId String?
-  cardeioPlayerId String?
+  isVerified               Boolean @default(false)
+  stripeAccountId          String?
+  // Cached snapshot of charges_enabled && payouts_enabled, updated by the
+  // account.updated webhook. Avoids a per-request Stripe roundtrip when
+  // gating "can this seller list a card" or "can this buyer pay".
+  stripeOnboardingComplete Boolean @default(false)
+  cardeioPlayerId          String?
 
   credibilityScore Float @default(1.0)
 
@@ -544,4 +629,83 @@ model User {
   offers         Offer[]
   pollVotes      ValuePollVote[]
   saleReports    SaleReport[]
+  alerts         UserAlert[]
+  proposedTrades Trade[]         @relation("TradeProposer")
+  receivedTrades Trade[]         @relation("TradeRecipient")
+}
+
+// =============================================================================
+// Alerts (PLANNING.md §9 — meta-shift / price-drop subscriptions)
+// =============================================================================
+
+model UserAlert {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  type   AlertType
+  cardId String?
+  card   Card?     @relation(fields: [cardId], references: [id])
+
+  // For PRICE_DROP / PRICE_SPIKE: % change threshold that triggers the alert.
+  // Null for BACK_IN_STOCK / META_SHIFT.
+  thresholdPct Decimal? @db.Decimal(5, 2)
+
+  active      Boolean   @default(true)
+  lastFiredAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, active])
+  @@index([cardId, type])
+}
+
+// =============================================================================
+// Trades (PLANNING.md §6 — card-for-card swaps)
+// =============================================================================
+
+model Trade {
+  id          String @id @default(cuid())
+  proposerId  String
+  proposer    User   @relation("TradeProposer", fields: [proposerId], references: [id])
+  recipientId String
+  recipient   User   @relation("TradeRecipient", fields: [recipientId], references: [id])
+
+  status TradeStatus @default(PROPOSED)
+
+  // Optional cash equalizer paid by proposer to recipient (or negative for the
+  // reverse direction). Null when the trade is a pure swap. Decimal(10,2) lets
+  // the same money plumbing in checkout/webhook handle non-cash trades cleanly
+  // when we later wire the payment leg.
+  cashAdjustment Decimal? @db.Decimal(10, 2)
+
+  message String?
+
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  respondedAt DateTime?
+  completedAt DateTime?
+
+  items TradeItem[]
+
+  @@index([proposerId])
+  @@index([recipientId])
+  @@index([status])
+}
+
+model TradeItem {
+  id      String @id @default(cuid())
+  tradeId String
+  trade   Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  cardId  String
+  card    Card   @relation(fields: [cardId], references: [id])
+
+  // Which side this item belongs to. Trade items split into two groups by this
+  // flag; both must net out to a fair (or cash-equalized) swap.
+  fromProposer Boolean
+
+  quantity  Int           @default(1)
+  condition CardCondition @default(NEAR_MINT)
+  treatment String
+
+  @@index([tradeId])
 }

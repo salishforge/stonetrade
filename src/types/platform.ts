@@ -26,6 +26,37 @@ export interface PlatformCardData {
   is_token: boolean;
 }
 
+/**
+ * Per-card play statistics aggregated across decks. Returned by the platform's
+ * /api/v1/meta/card-stats endpoint. Cards never observed in any deck are absent
+ * from the response.
+ */
+export interface PlatformCardStat {
+  card_number: string;
+  decks_containing: number;
+  total_quantity: number;
+  avg_copies_when_included: number;
+  /** Win rate weighted by quantity, on 0–1 scale. */
+  avg_win_rate: number;
+  /** Sum of (win_rate × quantity) across decks. */
+  weighted_score: number;
+}
+
+export interface PlatformCardStatsResponse {
+  /** Format the aggregation was scoped to, or null if all formats. */
+  format: string | null;
+  /** Total deck count in the scope (denominator for inclusion percentage). */
+  decks_total: number;
+  cards: PlatformCardStat[];
+}
+
+export interface PlatformCardStatsParams {
+  card_number?: string;
+  format_name?: string;
+  limit?: number;
+  skip?: number;
+}
+
 export interface PlatformCardSearchParams {
   name?: string;
   orbital?: string;

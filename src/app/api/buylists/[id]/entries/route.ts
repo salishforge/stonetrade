@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { z } from "zod/v4";
+import { recalculateCardValue } from "@/lib/pricing/recalculate";
 
 const entrySchema = z.object({
   cardId: z.string().min(1),
@@ -83,6 +84,15 @@ export async function POST(
       verified: true,
     },
   });
+
+  // Refresh CardMarketValue (BUYLIST_OFFER is a real signal; scarcity demand
+  // also changes). Wrap to keep the buylist update from rolling back on a
+  // recompute outage.
+  try {
+    await recalculateCardValue(input.cardId);
+  } catch (err) {
+    console.error("CardMarketValue recompute failed for", input.cardId, err);
+  }
 
   return NextResponse.json({ data: entry }, { status: 201 });
 }

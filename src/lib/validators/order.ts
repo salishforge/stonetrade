@@ -3,6 +3,9 @@ import { z } from "zod/v4";
 export const createOrderSchema = z.object({
   listingId: z.string().min(1),
   quantity: z.number().int().min(1).default(1),
+  // When provided, the order's unit price comes from the accepted offer
+  // instead of listing.price. Quantity is forced to 1 (offers are per-unit).
+  offerId: z.string().min(1).optional(),
   shippingMethod: z.string().min(1),
   shippingAddress: z.object({
     name: z.string().min(1),

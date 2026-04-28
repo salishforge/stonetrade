@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { fetchAllCards } from "./client";
 import { mapPlatformCardToMarketplace } from "./mapper";
+import { syncEngineMetrics } from "./sync-engine-metrics";
 
 /**
  * Sync cards from the sibling wonders-ccg-platform Card Database API
@@ -71,5 +72,21 @@ export async function syncFromPlatform() {
   }
 
   console.log(`Synced ${synced} card variants`);
-  return { synced };
+
+  // Refresh CardEngineMetrics for the cards we just synced. Engine metrics
+  // depend on the same identity (cardNumber), so running them in lockstep
+  // keeps PRI fresh whenever card data is pulled. Failures here log but do
+  // not roll back the card sync — the platform's deck-stats service may be
+  // down independently of card data.
+  let engineResult: Awaited<ReturnType<typeof syncEngineMetrics>> | null = null;
+  try {
+    engineResult = await syncEngineMetrics();
+    console.log(
+      `Synced engine metrics: fetched ${engineResult.fetched}, matched ${engineResult.matched}, upserted ${engineResult.upserted}`,
+    );
+  } catch (err) {
+    console.error("Engine metrics sync failed (card sync still succeeded):", err);
+  }
+
+  return { synced, engineMetrics: engineResult };
 }

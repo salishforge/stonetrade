@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
+import { UserMenu } from "@/components/auth/UserMenu";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,11 +22,15 @@ export const metadata: Metadata = {
     "Community-driven marketplace and price discovery for Wonders of the First, Bo Jackson Battle Arena, and emerging collectible card games.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Sign-out only meaningful in supabase mode; mock mode always shows "Sign in".
+  const signedIn =
+    process.env.AUTH_MODE === "supabase" && (await getCurrentUser()) !== null;
+
   return (
     <html
       lang="en"
@@ -68,12 +74,7 @@ export default function RootLayout({
               >
                 Dashboard
               </Link>
-              <Link
-                href="/login"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Sign In
-              </Link>
+              <UserMenu signedIn={signedIn} />
             </div>
           </div>
           {/* Mobile nav */}
