@@ -10,7 +10,7 @@
 
 ### Problem Statement
 
-Wonders of the First (WoTF) and Bo Jackson Battle Arena (BJBA) are new CCGs with no established market values. Neither game is listed on TCGPlayer. eBay sales exist for a subset of cards but there is no API access yet (developer token requested). Collectors and sellers have no centralized platform for trading, tracking collections, or understanding card values.
+Wonders of the First (WoTF) and Bo Jackson Battle Arena (BOBA) are new CCGs with no established market values. Neither game is listed on TCGPlayer. eBay sales exist for a subset of cards but there is no API access yet (developer token requested). Collectors and sellers have no centralized platform for trading, tracking collections, or understanding card values.
 
 ### Core Mission
 
@@ -22,7 +22,7 @@ Build a marketplace that simultaneously serves as a **price discovery engine** �
 - **Seller-managed stock** — no physical inventory held by the platform (like eBay, Purplemana, CardTrader)
 - **Mystery pack support** — sellers create curated mystery packs with guaranteed value tiers
 - **Carde.io integration path** — connect tournament performance to card valuation
-- **Multi-game from day one** — WoTF and BJBA with architecture for adding games
+- **Multi-game from day one** — WoTF and BOBA with architecture for adding games
 
 ---
 
@@ -54,7 +54,7 @@ Monitoring:      Sentry + PostHog analytics
 model Game {
   id          String   @id @default(cuid())
   name        String   // "Wonders of the First", "Bo Jackson Battle Arena"
-  slug        String   @unique // "wotf", "bjba"
+  slug        String   @unique // "wotf", "boba"
   publisher   String
   website     String
   logoUrl     String?
@@ -94,15 +94,15 @@ model Card {
   // WoTF-specific
   orbital         String?  // "Petraia", "Solfera", "Thalwind", "Umbrathene", "Heliosynth", "Boundless"
   
-  // BJBA-specific  
+  // BOBA-specific  
   athlete         String?  // Associated athlete name
   teamAffiliation String?
   
   // Shared attributes
-  rarity          String   // Common, Uncommon, Rare, Epic, Mythic (WoTF) / SP, SSP (BJBA)
-  cardType        String   // Wonder, Spell, Item, Land (WoTF) / Hero, Support, Action (BJBA)
+  rarity          String   // Common, Uncommon, Rare, Epic, Mythic (WoTF) / SP, SSP (BOBA)
+  cardType        String   // Wonder, Spell, Item, Land (WoTF) / Hero, Support, Action (BOBA)
   treatment       String   // Classic Paper, Classic Foil, Formless Foil, OCM, Stonefoil (WoTF)
-                           // Base, Superfoil, Inspired Ink Auto (BJBA)
+                           // Base, Superfoil, Inspired Ink Auto (BOBA)
   buildPoints     Int?     // WoTF Dynamic Balance Score component
   
   // Serialization
@@ -151,7 +151,7 @@ Existence Set: 401 base cards across 6 Orbitals + Boundless
 - Orbital Color Match (OCM) — serialized, color-changing border
 - Stonefoil — unique 1/1
 
-**BJBA Alpha Edition** — base set with numbered parallels, SP heroes, Superfoil 1/1s, Inspired Ink on-card autographs.
+**BOBA Alpha Edition** — base set with numbered parallels, SP heroes, Superfoil 1/1s, Inspired Ink on-card autographs.
 
 ---
 
@@ -856,7 +856,7 @@ When a card has zero transaction data, use Claude to estimate based on:
 ### Phase 1 — Foundation (Weeks 1-4)
 
 - [ ] Project setup: Next.js, Prisma, Supabase, Stripe Connect
-- [ ] Card database: Seed WoTF Existence set (401 cards × treatments) and BJBA Alpha Edition
+- [ ] Card database: Seed WoTF Existence set (401 cards × treatments) and BOBA Alpha Edition
 - [ ] Auth: Email + Discord OAuth
 - [ ] Basic marketplace: Create listing, browse, buy at listed price
 - [ ] Seller dashboard: Manage listings, view orders
@@ -1032,7 +1032,7 @@ src/
 │   ├── schema.prisma
 │   └── seed/
 │       ├── wotf-existence.ts
-│       └── bjba-alpha.ts
+│       └── boba-alpha.ts
 └── types/
     └── index.ts
 ```
@@ -1068,7 +1068,7 @@ Begin by setting up the project structure, installing dependencies, and creating
 3. **Parse**: Extract card number, name, orbital, rarity from checklist
 4. **Expand treatments**: For each base card, create entries for Classic Paper, Classic Foil, Formless Foil, OCM (with serial limits), and Stonefoil (1/1)
 
-### BJBA Alpha Edition
+### BOBA Alpha Edition
 
 1. **Source**: CGC population report + eBay listings for card names/numbers
 2. **Card images**: Scrape from COMC or eBay listings

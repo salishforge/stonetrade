@@ -151,7 +151,7 @@ model Card {
   // WoTF-specific
   orbital String?
 
-  // BJBA-specific
+  // BOBA-specific
   athlete         String?
   teamAffiliation String?
 

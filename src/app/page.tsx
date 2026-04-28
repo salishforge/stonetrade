@@ -237,10 +237,10 @@ export default async function HomePage() {
               Population data feeds the scarcity index.
             </p>
             <Link
-              href="/browse?game=bjba"
+              href="/browse?game=boba"
               className="text-[12px] uppercase tracking-[0.12em] text-gold hover:text-gold-light transition-colors"
             >
-              Browse BJBA →
+              Browse BOBA →
             </Link>
           </div>
         </div>

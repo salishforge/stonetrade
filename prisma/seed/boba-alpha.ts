@@ -1,5 +1,5 @@
 import { PrismaClient } from "../../src/generated/prisma/client.js";
-import data from "./data/bjba-alpha.json" with { type: "json" };
+import data from "./data/boba-alpha.json" with { type: "json" };
 
 const TREATMENTS = [
   { name: "Base", serialized: false, serialTotal: null },
@@ -7,7 +7,7 @@ const TREATMENTS = [
   { name: "Inspired Ink Auto", serialized: true, serialTotal: null },
 ] as const;
 
-export async function seedBjbaAlpha(prisma: PrismaClient) {
+export async function seedBobaAlpha(prisma: PrismaClient) {
   console.log("Seeding Bo Jackson Battle Arena — Alpha Edition...");
 
   // Upsert game

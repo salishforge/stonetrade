@@ -2,7 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "../../src/generated/prisma/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { seedWotfExistence } from "./wotf-existence.js";
-import { seedBjbaAlpha } from "./bjba-alpha.js";
+import { seedBobaAlpha } from "./boba-alpha.js";
 
 async function main() {
   const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
@@ -13,7 +13,7 @@ async function main() {
   try {
     await seedWotfExistence(prisma);
     console.log("");
-    await seedBjbaAlpha(prisma);
+    await seedBobaAlpha(prisma);
     console.log("\nSeed complete.");
   } finally {
     await prisma.$disconnect();

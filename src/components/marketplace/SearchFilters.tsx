@@ -68,7 +68,7 @@ export function SearchFilters() {
           <SelectContent>
             <SelectItem value="all">All Games</SelectItem>
             <SelectItem value="wotf">Wonders of the First</SelectItem>
-            <SelectItem value="bjba">Bo Jackson Battle Arena</SelectItem>
+            <SelectItem value="boba">Bo Jackson Battle Arena</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -6,10 +6,24 @@ import { syncEngineMetrics } from "./sync-engine-metrics";
 /**
  * Sync cards from the sibling wonders-ccg-platform Card Database API
  * into the marketplace database. Creates treatment variants for each card.
+ * Wonders has multiple sets; cards are assigned to a Set based on the
+ * platform's `set_name` field. Unknown sets fall through to Existence (the
+ * launch set) so a new platform-side set ships into the marketplace as a
+ * known-quantity rather than crashing the sync.
  *
  * This is a manual operation — not run automatically.
  * Use when the platform has updated card data to pull in.
  */
+
+// Map platform set_name → marketplace Set metadata.
+// Set codes are the marketplace's internal stable identifier (used in URLs
+// and seed-fixture references); names are the human-readable display.
+const WOTF_SETS: Record<string, { code: string; name: string; totalCards: number }> = {
+  "Existence": { code: "EX1", name: "Existence", totalCards: 478 },
+  "Call of the Stones": { code: "CotS", name: "Call of the Stones", totalCards: 481 },
+};
+const DEFAULT_WOTF_SET = WOTF_SETS["Existence"];
+
 export async function syncFromPlatform() {
   console.log("Fetching cards from platform API...");
   const platformCards = await fetchAllCards();
@@ -20,7 +34,6 @@ export async function syncFromPlatform() {
     return { synced: 0 };
   }
 
-  // Ensure WoTF game and Existence set exist
   const game = await prisma.game.upsert({
     where: { slug: "wotf" },
     update: {},
@@ -32,21 +45,36 @@ export async function syncFromPlatform() {
     },
   });
 
-  const set = await prisma.set.upsert({
-    where: { gameId_code: { gameId: game.id, code: "EX1" } },
-    update: {},
-    create: {
-      gameId: game.id,
-      name: "Existence",
-      code: "EX1",
-      totalCards: 401,
-    },
-  });
+  // Ensure each known set exists. Cache by code so we can look up by
+  // platform set_name during the loop.
+  const setIdByName = new Map<string, string>();
+  for (const meta of Object.values(WOTF_SETS)) {
+    const set = await prisma.set.upsert({
+      where: { gameId_code: { gameId: game.id, code: meta.code } },
+      update: { name: meta.name, totalCards: meta.totalCards },
+      create: {
+        gameId: game.id,
+        name: meta.name,
+        code: meta.code,
+        totalCards: meta.totalCards,
+      },
+    });
+    setIdByName.set(meta.name, set.id);
+  }
 
   let synced = 0;
+  const unknownSets = new Set<string>();
 
   for (const platformCard of platformCards) {
-    const variants = mapPlatformCardToMarketplace(platformCard, game.id, set.id);
+    // Resolve set from platform set_name, with a fallback to Existence.
+    const platformSetName = platformCard.set_name ?? "";
+    let setId = setIdByName.get(platformSetName);
+    if (!setId) {
+      if (platformSetName) unknownSets.add(platformSetName);
+      setId = setIdByName.get(DEFAULT_WOTF_SET.name)!;
+    }
+
+    const variants = mapPlatformCardToMarketplace(platformCard, game.id, setId);
 
     for (const variant of variants) {
       await prisma.card.upsert({
@@ -71,6 +99,13 @@ export async function syncFromPlatform() {
       });
       synced++;
     }
+  }
+
+  if (unknownSets.size > 0) {
+    console.warn(
+      `Unknown platform set_name(s) routed to ${DEFAULT_WOTF_SET.name}:`,
+      [...unknownSets].join(", "),
+    );
   }
 
   console.log(`Synced ${synced} card variants`);

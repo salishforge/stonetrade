@@ -22,7 +22,7 @@ Per `AGENTS.md`: this is **not** the Next.js in your training data — APIs and 
 ```bash
 docker compose -f docker-compose.dev.yml up -d   # Local Postgres on :5436
 npx prisma migrate dev                           # Apply migrations
-npm run db:seed                                  # Seed WoTF + BJBA card data
+npm run db:seed                                  # Seed WoTF + BOBA card data
 npm run dev                                      # Dev server (turbopack)
 npm run build && npm start                       # Production build/run
 npm run lint                                     # ESLint (next core-web-vitals + ts)

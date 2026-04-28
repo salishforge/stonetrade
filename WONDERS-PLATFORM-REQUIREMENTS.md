@@ -482,14 +482,14 @@ The marketplace should respect platform rate limits via `Retry-After` headers an
 
 ## 9. Multi-Game Considerations
 
-The marketplace is designed to host multiple games (WoTF, BJBA, future). Open question: does `wonders-ccg-platform` serve only WoTF, or does it become a generic CCG platform service?
+The marketplace is designed to host multiple games (WoTF, BOBA, future). Open question: does `wonders-ccg-platform` serve only WoTF, or does it become a generic CCG platform service?
 
 **Two viable architectures:**
 
 ### 9.1 Per-Game Platform Services (Recommended)
 
 - `wonders-ccg-platform` exposes WoTF only.
-- BJBA gets its own `bjba-platform` service.
+- BOBA gets its own `boba-platform` service.
 - The marketplace's `src/lib/platform/` becomes `src/lib/games/<slug>/` with one client per game.
 - Game-specific data shapes can diverge naturally.
 
@@ -499,7 +499,7 @@ The marketplace is designed to host multiple games (WoTF, BJBA, future). Open qu
 - Single client in marketplace.
 - Schema must accommodate both games' specifics — risk of awkward generalization.
 
-**Decision needed before BJBA platform integration begins** (Phase 4 at the earliest). For now, treat `wonders-ccg-platform` as WoTF-specific and keep `src/lib/platform/` as a per-game module.
+**Decision needed before BOBA platform integration begins** (Phase 4 at the earliest). For now, treat `wonders-ccg-platform` as WoTF-specific and keep `src/lib/platform/` as a per-game module.
 
 ---
 

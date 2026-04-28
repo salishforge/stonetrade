@@ -101,11 +101,11 @@ export const OCM_SERIAL_LIMITS: Record<string, number> = {
   Mythic: 10,
 };
 
-/** BJBA treatment types */
-export const BJBA_TREATMENTS = [
+/** BOBA treatment types */
+export const BOBA_TREATMENTS = [
   "Base",
   "Superfoil",
   "Inspired Ink Auto",
 ] as const;
 
-export type BjbaTreatment = (typeof BJBA_TREATMENTS)[number];
+export type BobaTreatment = (typeof BOBA_TREATMENTS)[number];
