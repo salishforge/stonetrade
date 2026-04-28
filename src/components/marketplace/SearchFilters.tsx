@@ -38,11 +38,17 @@ export function SearchFilters() {
       else params.delete(key);
       params.delete("page"); // reset pagination when a filter changes
       router.push(`/browse?${params.toString()}`);
+      // Without refresh(), Next 16's App Router serves the cached segment for
+      // the new URL — the URL bar updates but the card grid doesn't re-fetch.
+      router.refresh();
     },
     [router, searchParams],
   );
 
-  const clearAll = useCallback(() => router.push("/browse"), [router]);
+  const clearAll = useCallback(() => {
+    router.push("/browse");
+    router.refresh();
+  }, [router]);
 
   // Local state for the search input so typing feels responsive without
   // pushing the URL on every keystroke. Submit on Enter; clear with the x.
