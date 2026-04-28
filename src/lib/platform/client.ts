@@ -26,6 +26,13 @@ export async function fetchCard(cardNumber: string): Promise<PlatformCardData> {
   return fetchApi<PlatformCardData>(`/api/v1/cards/${encodeURIComponent(cardNumber)}`);
 }
 
+interface CardListResponse {
+  total: number;
+  skip: number;
+  limit: number;
+  cards: PlatformCardData[];
+}
+
 export async function searchCards(params: PlatformCardSearchParams = {}): Promise<PlatformCardData[]> {
   const searchParams = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -34,7 +41,10 @@ export async function searchCards(params: PlatformCardSearchParams = {}): Promis
     }
   }
   const query = searchParams.toString();
-  return fetchApi<PlatformCardData[]>(`/api/v1/cards${query ? `?${query}` : ""}`);
+  // The platform's /api/v1/cards wraps results in { total, skip, limit, cards }.
+  // We unwrap here so callers see a bare array.
+  const response = await fetchApi<CardListResponse>(`/api/v1/cards${query ? `?${query}` : ""}`);
+  return response.cards ?? [];
 }
 
 export async function fetchAllCards(batchSize = 200): Promise<PlatformCardData[]> {

@@ -24,6 +24,7 @@ export default async function CardDetailPage({
       game: true,
       set: true,
       marketValue: true,
+      engineMetrics: true,
       listings: {
         where: { status: "ACTIVE" },
         include: {
@@ -169,6 +170,88 @@ export default async function CardDetailPage({
               <p className="font-mono text-[12px] uppercase tracking-[0.08em] text-ink-muted">
                 No price data on this treatment yet.
                 <Link href="/report-sale" className="text-gold hover:text-gold-light ml-2 normal-case tracking-normal">Report a sale →</Link>
+              </p>
+            )}
+          </div>
+
+          {/* Engine read — deck-inclusion + win-rate + PRI from the platform. */}
+          <div className="border border-border/60 rounded-md p-5 bg-surface-raised">
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="font-display text-[20px] text-ink-primary tracking-tight" style={{ fontVariationSettings: "'opsz' 36" }}>
+                Engine read
+              </h2>
+              <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
+                Source: <span className="text-ink-secondary">wonders-platform</span>
+              </p>
+            </div>
+            {card.engineMetrics && card.engineMetrics.pri != null ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3 font-mono text-[12px]">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.1em] text-ink-muted mb-0.5">PRI</div>
+                  <div className="text-ink-primary text-[18px] tabular-nums">
+                    {card.engineMetrics.pri}
+                    <span className="text-ink-muted text-[12px] ml-1">/ 100</span>
+                  </div>
+                  {card.engineMetrics.priConfidence != null && (
+                    <div className="text-[10px] tabular-nums text-ink-muted mt-0.5">
+                      conf {card.engineMetrics.priConfidence}%
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.1em] text-ink-muted mb-0.5">Inclusion</div>
+                  <div className="text-ink-primary text-[18px] tabular-nums">
+                    {card.engineMetrics.deckInclusionPct != null
+                      ? `${Number(card.engineMetrics.deckInclusionPct).toFixed(1)}%`
+                      : "—"}
+                  </div>
+                  <div className="text-[10px] text-ink-muted">across all formats</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.1em] text-ink-muted mb-0.5">DBS</div>
+                  <div className="text-ink-primary text-[18px] tabular-nums">
+                    {card.engineMetrics.dbsScore ?? "—"}
+                  </div>
+                  <div className="text-[10px] text-ink-muted">deckbuilding score</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.1em] text-ink-muted mb-0.5">Avg copies</div>
+                  <div className="text-ink-primary text-[18px] tabular-nums">
+                    {card.engineMetrics.avgCopiesPlayed != null
+                      ? Number(card.engineMetrics.avgCopiesPlayed).toFixed(2)
+                      : "—"}
+                  </div>
+                  <div className="text-[10px] text-ink-muted">per deck included</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.1em] text-ink-muted mb-0.5">Win rate</div>
+                  <div className="text-ink-primary text-[18px] tabular-nums">
+                    {card.engineMetrics.winRateWhenIncluded != null
+                      ? `${Number(card.engineMetrics.winRateWhenIncluded).toFixed(1)}%`
+                      : "—"}
+                  </div>
+                  <div className="text-[10px] text-ink-muted">
+                    {card.engineMetrics.winRateWhenIncluded != null ? "when included" : "no games yet"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.1em] text-ink-muted mb-0.5">Replacement</div>
+                  <div className="text-ink-primary text-[18px] tabular-nums">
+                    {card.engineMetrics.replacementRate != null
+                      ? `${Number(card.engineMetrics.replacementRate).toFixed(1)}%`
+                      : "—"}
+                  </div>
+                  <div className="text-[10px] text-ink-muted">
+                    {card.engineMetrics.replacementRate != null ? "when removed" : "engine pending"}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="font-mono text-[12px] uppercase tracking-[0.08em] text-ink-muted">
+                No deck data for this card yet.
+                <span className="ml-2 normal-case tracking-normal text-ink-secondary">
+                  Cards become measurable once they appear in registered decks.
+                </span>
               </p>
             )}
           </div>

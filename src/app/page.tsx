@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CardImage } from "@/components/cards/CardImage";
 import { PriceStack } from "@/components/marketplace/PriceStack";
+import { getBrand } from "@/lib/brand";
 
 export const revalidate = 60; // dealer's counter refreshes once a minute
 
@@ -15,6 +16,7 @@ interface RecentSaleRow {
 }
 
 export default async function HomePage() {
+  const brand = getBrand();
   // Recently-listed cards: ACTIVE listings, newest first, with their card.
   const recentListings = await prisma.listing.findMany({
     where: { status: "ACTIVE" },
@@ -62,13 +64,16 @@ export default async function HomePage() {
       <header className="border-b border-border/40 pb-6 mb-10">
         <div className="flex items-end justify-between gap-6 flex-wrap">
           <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted mb-2">
+              {brand.name} · The Showcase
+            </p>
             <h1
               className="font-display text-[44px] leading-[1.05] tracking-[-0.015em] text-ink-primary"
               style={{ fontVariationSettings: "'opsz' 96" }}
             >
-              The Showcase
+              {brand.tagline}
             </h1>
-            <p className="text-ink-secondary text-[14px] mt-2 max-w-xl leading-relaxed">
+            <p className="text-ink-secondary text-[14px] mt-3 max-w-xl leading-relaxed">
               Marketplace and price discovery for emerging collectible card games.
               Every price shows its confidence; every signal is on the page.
             </p>

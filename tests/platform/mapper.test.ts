@@ -59,6 +59,12 @@ describe("mapPlatformCardToMarketplace", () => {
     expect(variants[0].imageUrl).toMatch(/\/CotS_282\.webp$/);
   });
 
+  it("imageUrl: E_ prefix is replaced with Existence_ (drops the E_)", async () => {
+    const variants = mapPlatformCardToMarketplace({ ...baseCard, card_number: "E_036" }, "g1", "s1");
+    expect(variants[0].imageUrl).toMatch(/\/Existence_036\.webp$/);
+    expect(variants[0].imageUrl).not.toMatch(/E_036/);
+  });
+
   it("imageUrl: existing image_url from platform takes precedence over derived", async () => {
     const variants = mapPlatformCardToMarketplace(
       { ...baseCard, image_url: "https://cdn.example/foo.webp" },

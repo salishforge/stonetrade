@@ -32,23 +32,34 @@ function abilitiesToRulesText(abilities: string[] | null): string | null {
 
 /**
  * Compute the image URL for a card. The platform stores images at
- * frontend/public/cards/{prefix}_{number}.webp where the prefix is set-derived.
- * CotS cards are prefixed already in card_number (e.g. "CotS_282"); Existence
- * cards are bare collector numbers (e.g. "T-029") and need an "Existence_"
- * prefix for the image filename.
+ * frontend/public/cards/{prefix}_{rest}.webp where prefix is "Existence" or
+ * "CotS". Maps the platform's card_number formats to those filenames:
  *
- * In dev the platform frontend serves images at :3000/cards/{filename}.
- * In prod the deploy may use a CDN or S3 mirror — that's configured via
- * WONDERS_PLATFORM_IMAGE_BASE_URL.
+ *   "CotS_282"   → CotS_282.webp           (already prefixed)
+ *   "Existence_*"→ Existence_*.webp        (already prefixed)
+ *   "E_036"      → Existence_036.webp      (drop "E_", apply Existence prefix)
+ *   "T-019"      → Existence_T-019.webp    (token, prepend Existence_)
+ *   "P-001"      → Existence_P-001.webp    (promo, prepend Existence_)
+ *   "A1-298"     → Existence_A1-298.webp   (alt-art, prepend Existence_)
+ *   "001"        → Existence_001.webp      (bare collector, prepend Existence_)
+ *
+ * WONDERS_PLATFORM_IMAGE_BASE_URL controls the host (dev nginx, prod CDN).
  */
 function imageUrlFromCardNumber(cardNumber: string): string {
   const baseUrl =
     process.env.WONDERS_PLATFORM_IMAGE_BASE_URL ?? "http://localhost:3000/cards";
-  // Trim a Carde.io-style "/401" suffix if present — image filenames don't have it.
+  // Trim a "/401" suffix if present — image filenames don't have it.
   const bare = cardNumber.split("/")[0];
-  const filename = bare.startsWith("CotS_") || bare.startsWith("Existence_")
-    ? `${bare}.webp`
-    : `Existence_${bare}.webp`;
+
+  let filename: string;
+  if (bare.startsWith("CotS_") || bare.startsWith("Existence_")) {
+    filename = `${bare}.webp`;
+  } else if (bare.startsWith("E_")) {
+    // Platform stores Existence cards as "E_036"; image file is "Existence_036.webp".
+    filename = `Existence_${bare.slice(2)}.webp`;
+  } else {
+    filename = `Existence_${bare}.webp`;
+  }
   return `${baseUrl.replace(/\/$/, "")}/${filename}`;
 }
 

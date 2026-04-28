@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { HeaderSearch } from "@/components/marketplace/HeaderSearch";
+import { getBrand } from "@/lib/brand";
 import "./globals.css";
 
 // Stonetrade's typography mirrors the Wonders platform doctrine — same family
@@ -33,10 +34,13 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+// Title and description follow the active brand. Next will re-evaluate this
+// at build time per deployment, so a stonetrade-branded build and a
+// hobby-club-branded build differ only in env vars.
+const brandForMetadata = getBrand();
 export const metadata: Metadata = {
-  title: "StoneTrade — CCG Marketplace",
-  description:
-    "Community-driven marketplace and price discovery for Wonders of the First, Bo Jackson Battle Arena, and emerging collectible card games.",
+  title: `${brandForMetadata.name} — CCG Marketplace`,
+  description: brandForMetadata.tagline,
 };
 
 export default async function RootLayout({
@@ -47,6 +51,7 @@ export default async function RootLayout({
   // Sign-out only meaningful in supabase mode; mock mode always shows "Sign in".
   const signedIn =
     process.env.AUTH_MODE === "supabase" && (await getCurrentUser()) !== null;
+  const brand = getBrand();
 
   return (
     <html
@@ -57,12 +62,28 @@ export default async function RootLayout({
         <header className="sticky top-0 z-50 border-b border-border/60 bg-surface-base/95 backdrop-blur">
           <div className="container mx-auto flex h-14 items-center justify-between px-4">
             <div className="flex items-center gap-8">
-              <Link
-                href="/"
-                className="font-display text-[22px] tracking-[0.02em] text-ink-primary leading-none"
-                style={{ fontVariationSettings: "'opsz' 48" }}
-              >
-                StoneTrade
+              <Link href="/" className="flex items-center gap-3 leading-none group">
+                {brand.logoSrc && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={brand.logoSrc}
+                    alt=""
+                    className="h-9 w-9 object-contain rounded-sm bg-surface-overlay/30 p-0.5"
+                  />
+                )}
+                <span className="flex flex-col">
+                  <span
+                    className="font-display text-[22px] tracking-[0.01em] text-ink-primary leading-none"
+                    style={{ fontVariationSettings: "'opsz' 48" }}
+                  >
+                    {brand.name}
+                  </span>
+                  {brand.poweredBy && (
+                    <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink-muted mt-1 leading-none">
+                      powered by {brand.poweredBy}
+                    </span>
+                  )}
+                </span>
               </Link>
               <nav className="hidden md:flex items-center gap-6 text-[12px] uppercase tracking-[0.12em] text-ink-secondary">
                 <Link href="/browse" className="hover:text-ink-primary transition-colors">Browse</Link>
@@ -106,7 +127,14 @@ export default async function RootLayout({
         <main className="flex-1">{children}</main>
         <footer className="border-t border-border/60 py-5 mt-12">
           <div className="container mx-auto px-4 flex items-center justify-between text-[11px] uppercase tracking-[0.12em] text-ink-muted">
-            <span>StoneTrade · Price discovery for emerging CCGs</span>
+            <span>
+              {brand.legalEntity} · {brand.tagline}
+              {brand.poweredBy && (
+                <span className="ml-3 normal-case tracking-normal">
+                  · powered by <span className="text-ink-secondary">{brand.poweredBy}</span>
+                </span>
+              )}
+            </span>
             <span className="font-mono normal-case tracking-normal">v0.1</span>
           </div>
         </footer>
