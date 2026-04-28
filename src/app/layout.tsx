@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import Link from "next/link";
+import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { UserMenu } from "@/components/auth/UserMenu";
+import { HeaderSearch } from "@/components/marketplace/HeaderSearch";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -62,6 +64,9 @@ export default async function RootLayout({
               </nav>
             </div>
             <div className="flex items-center gap-3">
+              <Suspense fallback={null}>
+                <HeaderSearch />
+              </Suspense>
               <Link
                 href="/collection"
                 className="hidden sm:inline-flex text-sm text-muted-foreground hover:text-foreground transition-colors"

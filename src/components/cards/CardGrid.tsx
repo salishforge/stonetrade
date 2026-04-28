@@ -12,6 +12,7 @@ interface CardData {
   rarity: string;
   cardType: string;
   treatment: string;
+  imageUrl?: string | null;
   game: { name: string; slug: string };
   set: { name: string; code: string };
   marketValue: {
@@ -46,6 +47,7 @@ export function CardGrid({ cards }: { cards: CardData[] }) {
         >
           <CardImage
             name={card.name}
+            imageUrl={card.imageUrl}
             orbital={card.orbital}
             rarity={card.rarity}
             className="transition-transform group-hover:scale-[1.02]"
