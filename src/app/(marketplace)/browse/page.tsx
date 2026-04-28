@@ -44,12 +44,18 @@ const SORT_CLAUSES: Record<string, string> = {
 export default async function BrowsePage({ searchParams }: BrowsePageProps) {
   const params = await searchParams;
 
-  const game = typeof params.game === "string" ? params.game : undefined;
-  const set = typeof params.set === "string" ? params.set : undefined;
-  const orbital = typeof params.orbital === "string" ? params.orbital : undefined;
-  const rarity = typeof params.rarity === "string" ? params.rarity : undefined;
-  const treatment = typeof params.treatment === "string" ? params.treatment : "Classic Paper";
-  const cardType = typeof params.cardType === "string" ? params.cardType : undefined;
+  // Treat "all" sentinel as "no filter on this axis"; the form always
+  // submits a value (even "all") so that user changes from a non-default
+  // back to default still register.
+  const stringOrUndef = (v: string | string[] | undefined): string | undefined =>
+    typeof v === "string" && v.length > 0 && v !== "all" ? v : undefined;
+
+  const game = stringOrUndef(params.game);
+  const set = stringOrUndef(params.set);
+  const orbital = stringOrUndef(params.orbital);
+  const rarity = stringOrUndef(params.rarity);
+  const cardType = stringOrUndef(params.cardType);
+  const treatment = stringOrUndef(params.treatment) ?? "Classic Paper";
   const search = typeof params.q === "string" ? params.q.trim() : undefined;
   const sort = typeof params.sort === "string" && params.sort in SORT_CLAUSES ? params.sort : "cardNumber";
   const page = typeof params.page === "string" ? Math.max(1, parseInt(params.page, 10) || 1) : 1;
