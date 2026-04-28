@@ -4,6 +4,10 @@ import { CardGrid } from "@/components/cards/CardGrid";
 import { SearchFilters } from "@/components/marketplace/SearchFilters";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Filter changes update searchParams; force-dynamic skips Next's Router
+// Cache so each filter selection triggers a fresh server render.
+export const dynamic = "force-dynamic";
+
 interface BrowsePageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }

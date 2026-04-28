@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useTransition } from "react";
 
 const ORBITALS = ["Petraia", "Solfera", "Thalwind", "Umbrathene", "Heliosynth", "Boundless"];
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Mythic"];
@@ -30,6 +30,7 @@ const SORTS = [
 export function SearchFilters() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
 
   const setParam = useCallback(
     (key: string, value: string | null) => {
@@ -37,17 +38,24 @@ export function SearchFilters() {
       if (value && value !== "all") params.set(key, value);
       else params.delete(key);
       params.delete("page"); // reset pagination when a filter changes
-      router.push(`/browse?${params.toString()}`);
-      // Without refresh(), Next 16's App Router serves the cached segment for
-      // the new URL — the URL bar updates but the card grid doesn't re-fetch.
-      router.refresh();
+      // Search-param-only changes use replace() inside a transition, then
+      // refresh() to invalidate Next 16's Router Cache for the destination
+      // segment. push() + refresh() races; transition + replace + refresh is
+      // the pattern that consistently re-fetches the server component.
+      startTransition(() => {
+        const qs = params.toString();
+        router.replace(qs ? `/browse?${qs}` : "/browse");
+        router.refresh();
+      });
     },
     [router, searchParams],
   );
 
   const clearAll = useCallback(() => {
-    router.push("/browse");
-    router.refresh();
+    startTransition(() => {
+      router.replace("/browse");
+      router.refresh();
+    });
   }, [router]);
 
   // Local state for the search input so typing feels responsive without
