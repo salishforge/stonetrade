@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useState } from "react";
 
 const ORBITALS = ["Petraia", "Solfera", "Thalwind", "Umbrathene", "Heliosynth", "Boundless"];
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Mythic"];
@@ -28,9 +28,7 @@ const SORTS = [
  * — shadcn's Select primitive is heavier than this needs to be.
  */
 export function SearchFilters() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
 
   const setParam = useCallback(
     (key: string, value: string | null) => {
@@ -38,25 +36,22 @@ export function SearchFilters() {
       if (value && value !== "all") params.set(key, value);
       else params.delete(key);
       params.delete("page"); // reset pagination when a filter changes
-      // Search-param-only changes use replace() inside a transition, then
-      // refresh() to invalidate Next 16's Router Cache for the destination
-      // segment. push() + refresh() races; transition + replace + refresh is
-      // the pattern that consistently re-fetches the server component.
-      startTransition(() => {
-        const qs = params.toString();
-        router.replace(qs ? `/browse?${qs}` : "/browse");
-        router.refresh();
-      });
+      // Plain location nav: full page load, no Next.js Router Cache involved.
+      // The earlier router.push / router.replace / startTransition variants
+      // didn't reliably re-fetch the server component on search-param-only
+      // changes in Next 16. This is unambiguous: the browser navigates, the
+      // server renders fresh.
+      const qs = params.toString();
+      if (typeof window !== "undefined") {
+        window.location.href = qs ? `/browse?${qs}` : "/browse";
+      }
     },
-    [router, searchParams],
+    [searchParams],
   );
 
   const clearAll = useCallback(() => {
-    startTransition(() => {
-      router.replace("/browse");
-      router.refresh();
-    });
-  }, [router]);
+    if (typeof window !== "undefined") window.location.href = "/browse";
+  }, []);
 
   // Local state for the search input so typing feels responsive without
   // pushing the URL on every keystroke. Submit on Enter; clear with the x.
