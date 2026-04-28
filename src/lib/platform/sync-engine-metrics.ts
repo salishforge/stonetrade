@@ -110,6 +110,11 @@ export async function syncEngineMetrics(opts: { format?: string } = {}): Promise
           format: opts.format ?? null,
         },
       });
+      // Append a PRI snapshot. Append-only — alert evaluator reads recent
+      // history to detect META_SHIFT (sustained PRI changes).
+      await prisma.cardEngineMetricsHistory.create({
+        data: { cardId: card.id, pri, priConfidence: confidence },
+      });
       upserted++;
     }
   }

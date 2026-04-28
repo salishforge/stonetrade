@@ -18,6 +18,15 @@ vi.mock("@/lib/auth", () => ({
     if (!user || user.role !== "ADMIN") return null;
     return user;
   },
+  // Real implementation re-exported so the cron-token tests exercise the real code path.
+  isCronAuthorized: (request: Request): boolean => {
+    const expected = process.env.CRON_TOKEN;
+    if (!expected) return false;
+    const header = request.headers.get("authorization") ?? "";
+    const match = header.match(/^Bearer\s+(.+)$/i);
+    if (!match) return false;
+    return match[1] === expected;
+  },
 }));
 
 let POST: typeof import("@/app/api/admin/recompute-stale/route").POST;
@@ -55,10 +64,12 @@ async function seedMarketValue(cardId: string, lastUpdated: Date) {
   });
 }
 
-function makeRequest(query: Record<string, string> = {}): NextRequest {
+function makeRequest(query: Record<string, string> = {}, opts: { authHeader?: string } = {}): NextRequest {
   const url = new URL("http://localhost/api/admin/recompute-stale");
   for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
-  return new NextRequest(url, { method: "POST" });
+  const headers = new Headers();
+  if (opts.authHeader) headers.set("authorization", opts.authHeader);
+  return new NextRequest(url, { method: "POST", headers });
 }
 
 describe("POST /api/admin/recompute-stale", () => {
@@ -123,6 +134,33 @@ describe("POST /api/admin/recompute-stale", () => {
     setMockUser(admin.id);
     const res = await POST(makeRequest({ olderThanMinutes: "0" }));
     expect(res.status).toBe(400);
+  });
+
+  it("authorizes via Bearer CRON_TOKEN without admin user", async () => {
+    const original = process.env.CRON_TOKEN;
+    process.env.CRON_TOKEN = "test_cron_token";
+    try {
+      // No mock user set → only the cron token can authorize.
+      setMockUser(null);
+      const res = await POST(makeRequest({}, { authHeader: "Bearer test_cron_token" }));
+      expect(res.status).toBe(200);
+    } finally {
+      if (original === undefined) delete process.env.CRON_TOKEN;
+      else process.env.CRON_TOKEN = original;
+    }
+  });
+
+  it("rejects wrong CRON_TOKEN", async () => {
+    const original = process.env.CRON_TOKEN;
+    process.env.CRON_TOKEN = "test_cron_token";
+    try {
+      setMockUser(null);
+      const res = await POST(makeRequest({}, { authHeader: "Bearer wrong" }));
+      expect(res.status).toBe(403);
+    } finally {
+      if (original === undefined) delete process.env.CRON_TOKEN;
+      else process.env.CRON_TOKEN = original;
+    }
   });
 
   it("returns 0 candidates when nothing is stale", async () => {

@@ -64,6 +64,8 @@ export async function syncFromPlatform() {
           cardType: variant.cardType,
           buildPoints: variant.buildPoints,
           rulesText: variant.rulesText,
+          flavorText: variant.flavorText,
+          imageUrl: variant.imageUrl,
         },
         create: variant,
       });

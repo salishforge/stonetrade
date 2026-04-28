@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
-import { getAdminUser } from "@/lib/auth";
+import { getAdminUser, isCronAuthorized } from "@/lib/auth";
 import { recalculateCardValue } from "@/lib/pricing/recalculate";
 
 const querySchema = z.object({
@@ -15,8 +15,11 @@ const querySchema = z.object({
  * maxCards so a single invocation has a known cost ceiling.
  */
 export async function POST(request: NextRequest) {
-  const admin = await getAdminUser();
-  if (!admin) return NextResponse.json({ error: "Admin required" }, { status: 403 });
+  const cronOk = isCronAuthorized(request);
+  if (!cronOk) {
+    const admin = await getAdminUser();
+    if (!admin) return NextResponse.json({ error: "Admin or CRON_TOKEN required" }, { status: 403 });
+  }
 
   const params = Object.fromEntries(request.nextUrl.searchParams.entries());
   const parsed = querySchema.safeParse(params);

@@ -145,11 +145,62 @@ describe("evaluateAlerts: BACK_IN_STOCK", () => {
 });
 
 describe("evaluateAlerts: META_SHIFT", () => {
-  it("is intentionally a no-op (PRI history not yet stored)", async () => {
+  it("fires when current PRI shifted ≥ 10 from a 7+-day-old snapshot", async () => {
     const { card, user } = await seed();
-    await prisma.userAlert.create({
-      data: { userId: user.id, type: "META_SHIFT", cardId: card.id },
+    await prisma.cardEngineMetrics.create({ data: { cardId: card.id, pri: 75 } });
+    // Snapshot taken 8 days ago at PRI 60 → +15 delta, fires
+    await prisma.cardEngineMetricsHistory.create({
+      data: { cardId: card.id, pri: 60, capturedAt: new Date(Date.now() - 8 * 86400000) },
     });
+    await prisma.userAlert.create({ data: { userId: user.id, type: "META_SHIFT", cardId: card.id } });
+
+    const result = await evaluateAlerts();
+    expect(result.fired).toBe(1);
+  });
+
+  it("does not fire when delta is below threshold", async () => {
+    const { card, user } = await seed();
+    await prisma.cardEngineMetrics.create({ data: { cardId: card.id, pri: 65 } });
+    await prisma.cardEngineMetricsHistory.create({
+      data: { cardId: card.id, pri: 60, capturedAt: new Date(Date.now() - 8 * 86400000) },
+    });
+    await prisma.userAlert.create({ data: { userId: user.id, type: "META_SHIFT", cardId: card.id } });
+
+    const result = await evaluateAlerts();
+    expect(result.fired).toBe(0);
+  });
+
+  it("does not fire when no 7+-day-old snapshot exists", async () => {
+    const { card, user } = await seed();
+    await prisma.cardEngineMetrics.create({ data: { cardId: card.id, pri: 80 } });
+    // Snapshot only 2 days old — too recent
+    await prisma.cardEngineMetricsHistory.create({
+      data: { cardId: card.id, pri: 50, capturedAt: new Date(Date.now() - 2 * 86400000) },
+    });
+    await prisma.userAlert.create({ data: { userId: user.id, type: "META_SHIFT", cardId: card.id } });
+
+    const result = await evaluateAlerts();
+    expect(result.fired).toBe(0);
+  });
+
+  it("fires on negative shift (drop) too", async () => {
+    const { card, user } = await seed();
+    await prisma.cardEngineMetrics.create({ data: { cardId: card.id, pri: 40 } });
+    await prisma.cardEngineMetricsHistory.create({
+      data: { cardId: card.id, pri: 70, capturedAt: new Date(Date.now() - 10 * 86400000) },
+    });
+    await prisma.userAlert.create({ data: { userId: user.id, type: "META_SHIFT", cardId: card.id } });
+
+    const result = await evaluateAlerts();
+    expect(result.fired).toBe(1);
+  });
+
+  it("does not fire when card has no engineMetrics", async () => {
+    const { card, user } = await seed();
+    await prisma.cardEngineMetricsHistory.create({
+      data: { cardId: card.id, pri: 60, capturedAt: new Date(Date.now() - 10 * 86400000) },
+    });
+    await prisma.userAlert.create({ data: { userId: user.id, type: "META_SHIFT", cardId: card.id } });
 
     const result = await evaluateAlerts();
     expect(result.fired).toBe(0);

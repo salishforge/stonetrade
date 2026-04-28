@@ -5,6 +5,13 @@ import { renderAlertEmail } from "@/lib/email/templates/alert";
 /** 24 hours between repeat fires for the same alert. */
 const ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
+/** META_SHIFT compares current PRI to a snapshot ≥ this many days ago. */
+const META_SHIFT_LOOKBACK_DAYS = 7;
+const META_SHIFT_LOOKBACK_MS = META_SHIFT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+
+/** Absolute PRI delta needed to fire a META_SHIFT alert. */
+const META_SHIFT_PRI_DELTA = 10;
+
 interface EvaluateResult {
   scanned: number;
   fired: number;
@@ -37,6 +44,9 @@ export async function evaluateAlerts(opts: { now?: Date } = {}): Promise<Evaluat
           cardNumber: true,
           marketValue: {
             select: { trend7d: true, totalAvailable: true, marketMid: true },
+          },
+          engineMetrics: {
+            select: { pri: true },
           },
         },
       },
@@ -88,9 +98,30 @@ export async function evaluateAlerts(opts: { now?: Date } = {}): Promise<Evaluat
           }
           break;
         }
-        case "META_SHIFT":
-          // Not yet implemented — needs PRI history snapshots.
-          continue;
+        case "META_SHIFT": {
+          // Compares current PRI to the most recent snapshot taken ≥7d ago.
+          // Fires when |current - past| ≥ META_SHIFT_PRI_DELTA. Cards without
+          // engine metrics (no PRI) or without a 7+-day-old snapshot can't
+          // fire — that's the right behavior; a card with no history hasn't
+          // shifted by definition.
+          const currentPri = card?.engineMetrics?.pri;
+          if (currentPri == null) break;
+
+          const lookbackBefore = new Date(now.getTime() - META_SHIFT_LOOKBACK_MS);
+          const past = await prisma.cardEngineMetricsHistory.findFirst({
+            where: { cardId: card!.id, capturedAt: { lte: lookbackBefore } },
+            orderBy: { capturedAt: "desc" },
+            select: { pri: true },
+          });
+          if (!past) break;
+
+          const delta = currentPri - past.pri;
+          if (Math.abs(delta) >= META_SHIFT_PRI_DELTA) {
+            shouldFire = true;
+            changePct = delta.toFixed(0); // integer PRI delta; reuse the field for the email
+          }
+          break;
+        }
       }
 
       if (!shouldFire) continue;

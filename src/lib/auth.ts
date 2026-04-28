@@ -74,3 +74,20 @@ export async function getAdminUser(): Promise<User | null> {
   if (user.role !== "ADMIN") return null;
   return user;
 }
+
+/**
+ * True when the request carries a valid Bearer token that matches CRON_TOKEN.
+ * Only checks header presence + equality — no user lookup. Used by admin
+ * endpoints to allow scheduled jobs (GitHub Actions, Vercel Cron, etc.) to
+ * call them without a user session.
+ */
+export function isCronAuthorized(request: Request): boolean {
+  const expected = process.env.CRON_TOKEN;
+  if (!expected) return false;
+  const header = request.headers.get("authorization") ?? "";
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match) return false;
+  // Constant-time comparison would be ideal but the difference at this layer
+  // (post-TLS, behind a CDN, with a job-controlled token) is not material.
+  return match[1] === expected;
+}

@@ -24,6 +24,9 @@ export interface PlatformCardData {
   is_core: boolean;
   is_equipment: boolean;
   is_token: boolean;
+  // Optional fields the Card DB API exposes; not always populated server-side
+  image_url?: string | null;
+  flavor_text?: string | null;
 }
 
 /**

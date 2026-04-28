@@ -188,6 +188,7 @@ model Card {
   saleReports     SaleReport[]
   marketValue     CardMarketValue?
   engineMetrics   CardEngineMetrics?
+  engineHistory   CardEngineMetricsHistory[]
   alerts          UserAlert[]
   tradeItems      TradeItem[]
 
@@ -291,6 +292,20 @@ model CardEngineMetrics {
 
   @@index([pri])
   @@index([deckInclusionPct])
+}
+
+// Per-sync snapshot of PRI. Lets the alert evaluator compare current PRI to
+// a prior point in time (META_SHIFT detection). Append-only; no maintenance
+// required beyond syncEngineMetrics writing one row per card per run.
+model CardEngineMetricsHistory {
+  id            String   @id @default(cuid())
+  cardId        String
+  card          Card     @relation(fields: [cardId], references: [id])
+  pri           Int
+  priConfidence Int?
+  capturedAt    DateTime @default(now())
+
+  @@index([cardId, capturedAt])
 }
 
 // =============================================================================
