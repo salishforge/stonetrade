@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { HeaderSearch } from "@/components/marketplace/HeaderSearch";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { getBrand } from "@/lib/brand";
 import "./globals.css";
 
@@ -48,9 +49,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Sign-out only meaningful in supabase mode; mock mode always shows "Sign in".
-  const signedIn =
-    process.env.AUTH_MODE === "supabase" && (await getCurrentUser()) !== null;
+  // We need the User.id regardless of AUTH_MODE so the Novu <Inbox> can scope
+  // notifications per subscriber. The signed-in chrome itself is still gated
+  // on supabase mode — mock mode always shows "Sign in" because there is no
+  // real session to sign out of.
+  const currentUser = await getCurrentUser();
+  const signedIn = process.env.AUTH_MODE === "supabase" && currentUser !== null;
   const brand = getBrand();
 
   return (
@@ -109,6 +113,7 @@ export default async function RootLayout({
               >
                 Dashboard
               </Link>
+              {currentUser && <NotificationBell subscriberId={currentUser.id} />}
               <UserMenu signedIn={signedIn} />
             </div>
           </div>

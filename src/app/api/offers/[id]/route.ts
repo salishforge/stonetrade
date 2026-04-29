@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { triggerNotification } from "@/lib/notify/novu";
 import { z } from "zod/v4";
 
 const respondSchema = z.object({
@@ -24,7 +25,7 @@ export async function PATCH(
 
   const offer = await prisma.offer.findUnique({
     where: { id },
-    include: { listing: true },
+    include: { listing: { include: { card: { select: { name: true } } } } },
   });
 
   if (!offer || offer.status !== "PENDING") {
@@ -40,6 +41,40 @@ export async function PATCH(
       where: { id },
       data: { status: "ACCEPTED", respondedAt: new Date() },
     });
+
+    // Fan out "outbid" to every other PENDING offer's buyer on the same
+    // listing. Their offer isn't auto-rejected by accepting one (existing
+    // product behavior), but the listing is effectively spoken for. Each
+    // outbid trigger is keyed by the losing offer's id so retries dedupe.
+    const otherOffers = await prisma.offer.findMany({
+      where: {
+        listingId: offer.listingId,
+        status: "PENDING",
+        id: { not: id },
+      },
+      include: { buyer: true },
+    });
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    for (const other of otherOffers) {
+      await triggerNotification({
+        workflowId: "outbid",
+        to: {
+          id: other.buyer.id,
+          email: other.buyer.email,
+          username: other.buyer.username,
+        },
+        payload: {
+          offerId: other.id,
+          listingId: offer.listingId,
+          cardName: offer.listing.card?.name ?? "Listing",
+          yourOffer: Number(other.amount).toFixed(2),
+          acceptedAmount: Number(offer.amount).toFixed(2),
+          listingUrl: `${appBaseUrl}/listings/${offer.listingId}`,
+        },
+        transactionId: `outbid:${other.id}`,
+      });
+    }
+
     return NextResponse.json({ data: { success: true, action: "accepted" } });
   }
 

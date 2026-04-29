@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { sendEmail } from "@/lib/email/resend";
 import { renderOrderConfirmationHtml } from "@/lib/email/templates/order-confirmation";
+import { triggerNotification } from "@/lib/notify/novu";
 import { recalculateCardValue } from "@/lib/pricing/recalculate";
 
 export const runtime = "nodejs";
@@ -88,7 +89,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const order = await prisma.order.findUnique({
     where: { stripeCheckoutSessionId: session.id },
     include: {
-      listing: { include: { card: true } },
+      // Seller is needed for the listing-sold notification fan-out below.
+      // Pulled in the same query to avoid a second round-trip on every paid
+      // order — Prisma serializes it into the same SELECT.
+      listing: { include: { card: true, seller: true } },
       buyer: true,
     },
   });
@@ -196,6 +200,59 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   } catch (err) {
     console.error("Order confirmation email failed:", err);
   }
+
+  // Novu: fan out the same "order paid" event to in-app + (eventually) other
+  // channels via the dashboard-defined "order-paid" workflow. No-op when
+  // NOVU_API_KEY is unset. Runs alongside the direct sendEmail call above
+  // during the migration period — the Novu workflow's email step duplicates
+  // the Resend send only once we cut Resend over to Novu and turn off this
+  // direct call (P2 in the scoping doc). Idempotency key is the Stripe
+  // payment_intent so retried webhooks don't double-fire.
+  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  await triggerNotification({
+    workflowId: "order-paid",
+    to: {
+      id: order.buyer.id,
+      email: order.buyer.email,
+      username: order.buyer.username,
+    },
+    payload: {
+      orderId: order.id,
+      cardName: listing.card?.name ?? "Listing",
+      treatment: listing.treatment ?? "Classic Paper",
+      condition: listing.condition ?? "NEAR_MINT",
+      quantity: order.quantity,
+      total: order.total.toFixed(2),
+      orderUrl: `${appBaseUrl}/orders/${order.id}`,
+    },
+    transactionId: paymentIntentId ?? undefined,
+  });
+
+  // Notify the seller their listing sold. Distinct workflow from order-paid
+  // so seller-specific channels and content (shipping reminder, payout ETA)
+  // can diverge from buyer's confirmation. transactionId reuses the same
+  // payment_intent + a `:seller` suffix so retried webhooks still de-dupe
+  // independently of the buyer trigger.
+  await triggerNotification({
+    workflowId: "listing-sold",
+    to: {
+      id: listing.seller.id,
+      email: listing.seller.email,
+      username: listing.seller.username,
+    },
+    payload: {
+      orderId: order.id,
+      cardName: listing.card?.name ?? "Listing",
+      treatment: listing.treatment ?? "Classic Paper",
+      condition: listing.condition ?? "NEAR_MINT",
+      quantity: order.quantity,
+      buyerUsername: order.buyer.username,
+      payoutAmount: order.total.toFixed(2),
+      orderUrl: `${appBaseUrl}/listings/orders/${order.id}`,
+    },
+    transactionId: paymentIntentId ? `${paymentIntentId}:seller` : undefined,
+  });
 
   // Refresh CardMarketValue (totals + scarcity drift on every PAID order).
   // Wrapped so a recompute outage does not roll back the paid order.

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { triggerNotification } from "@/lib/notify/novu";
 
 /**
  * Bounty matching — runs when a Listing is created or a CollectionCard is
@@ -58,8 +59,15 @@ export async function matchAgainstNewListing(opts: {
         treatment: opts.treatment,
         maxPrice: { gte: opts.price },
       },
-      include: { buylist: { select: { userId: true } } },
+      // Pull in user + card so the Novu trigger has email/username/cardName
+      // without a second roundtrip per match. Cardinality is small (number
+      // of bounties on the same card) so this stays bounded.
+      include: {
+        buylist: { include: { user: true } },
+        card: { select: { name: true } },
+      },
     });
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
     const listingRank = CONDITION_RANK[opts.condition] ?? 0;
     const matched: MatchedBounty[] = [];
@@ -75,9 +83,9 @@ export async function matchAgainstNewListing(opts: {
         autoBuy: b.autoBuy,
       });
 
-      // Notify the bounty owner via the existing alert feed. BACK_IN_STOCK
-      // is the closest existing AlertType — reuse it rather than introducing
-      // a new BOUNTY_HIT type for this stub.
+      // Legacy alert feed — keep firing during the migration window so the
+      // existing `/alerts` page stays populated. Novu fan-out below replaces
+      // this once the in-app feed is rolled out to all users.
       await prisma.userAlert.create({
         data: {
           userId: b.buylist.userId,
@@ -86,6 +94,30 @@ export async function matchAgainstNewListing(opts: {
           lastFiredAt: new Date(),
         },
       }).catch((err) => console.error("bounty alert create failed:", err));
+
+      // Idempotency key combines bounty + listing — same listing matching the
+      // same bounty multiple times (republish, edit) won't spam.
+      await triggerNotification({
+        workflowId: "bounty-hit",
+        to: {
+          id: b.buylist.user.id,
+          email: b.buylist.user.email,
+          username: b.buylist.user.username,
+        },
+        payload: {
+          bountyId: b.id,
+          listingId: opts.listingId,
+          source: "listing",
+          cardName: b.card.name,
+          treatment: opts.treatment,
+          condition: opts.condition,
+          listingPrice: opts.price.toFixed(2),
+          maxPrice: Number(b.maxPrice).toFixed(2),
+          autoBuy: b.autoBuy,
+          listingUrl: `${appBaseUrl}/listings/${opts.listingId}`,
+        },
+        transactionId: `bounty:${b.id}:listing:${opts.listingId}`,
+      });
 
       if (b.autoBuy) {
         // TODO(auto-buy): create an Order on behalf of b.buylist.userId at
@@ -121,8 +153,12 @@ export async function matchAgainstCollectionAdd(opts: {
   try {
     const bounties = await prisma.buylistEntry.findMany({
       where: { cardId: opts.cardId, isBounty: true, treatment: opts.treatment },
-      include: { buylist: { select: { userId: true } } },
+      include: {
+        buylist: { include: { user: true } },
+        card: { select: { name: true } },
+      },
     });
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
     const collectionRank = CONDITION_RANK[opts.condition] ?? 0;
     const matched: MatchedBounty[] = [];
@@ -146,6 +182,29 @@ export async function matchAgainstCollectionAdd(opts: {
           lastFiredAt: new Date(),
         },
       }).catch((err) => console.error("bounty (collection) alert create failed:", err));
+
+      await triggerNotification({
+        workflowId: "bounty-hit",
+        to: {
+          id: b.buylist.user.id,
+          email: b.buylist.user.email,
+          username: b.buylist.user.username,
+        },
+        payload: {
+          bountyId: b.id,
+          source: "collection",
+          collectorId: opts.collectorId,
+          cardName: b.card.name,
+          treatment: opts.treatment,
+          condition: opts.condition,
+          maxPrice: Number(b.maxPrice).toFixed(2),
+          autoBuy: false,
+          // No direct listing URL — the collector hasn't agreed to sell.
+          // Bounty owner can reach out via the messaging surface (P3+).
+          bountyUrl: `${appBaseUrl}/buylists`,
+        },
+        transactionId: `bounty:${b.id}:collection:${opts.collectorId}`,
+      });
     }
 
     return matched;
