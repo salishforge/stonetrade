@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 import { CardImage } from "@/components/cards/CardImage";
 import { PriceStack } from "@/components/marketplace/PriceStack";
 
@@ -9,6 +11,81 @@ interface RecentSaleRow {
   source: string;
   createdAt: string;
   condition: string;
+}
+
+/**
+ * Server action: add a buylist entry (or bounty) for the current card.
+ * Auto-creates a default Buylist for the user if they don't have one yet —
+ * most users will only ever maintain a single list, so making them name it
+ * upfront is friction. Power users can create more from /buylist later.
+ *
+ * Same row whether it's a normal want or a bounty: the isBounty flag controls
+ * whether it shows up on the home page Showcase. Re-adding the same card with
+ * isBounty=true upgrades the entry; re-adding with isBounty=false leaves
+ * any existing bounty flag alone (the unique constraint on
+ * (buylistId, cardId, treatment, condition) means it's an upsert).
+ */
+async function addToBuylist(formData: FormData) {
+  "use server";
+
+  const user = await requireUser();
+  const cardId = formData.get("cardId");
+  const maxPriceRaw = formData.get("maxPrice");
+  const isBounty = formData.get("isBounty") === "true";
+  const autoBuy = formData.get("autoBuy") === "true";
+  const treatment = formData.get("treatment");
+  const condition = formData.get("condition");
+
+  if (typeof cardId !== "string") throw new Error("Missing cardId");
+  if (typeof treatment !== "string" || !treatment) throw new Error("Missing treatment");
+  if (typeof condition !== "string" || !condition) throw new Error("Missing condition");
+  const maxPrice = Number(maxPriceRaw);
+  if (!Number.isFinite(maxPrice) || maxPrice <= 0) throw new Error("Invalid max price");
+
+  // Default buylist on demand. Stays the user's "main" list for everything
+  // they add via this affordance.
+  let buylist = await prisma.buylist.findFirst({ where: { userId: user.id }, orderBy: { createdAt: "asc" } });
+  if (!buylist) {
+    buylist = await prisma.buylist.create({
+      data: { userId: user.id, name: "Want list", isPublic: false },
+    });
+  }
+
+  const cardConditionEnum = condition as
+    | "MINT" | "NEAR_MINT" | "LIGHTLY_PLAYED" | "MODERATELY_PLAYED" | "HEAVILY_PLAYED" | "DAMAGED";
+
+  await prisma.buylistEntry.upsert({
+    where: {
+      buylistId_cardId_treatment_condition: {
+        buylistId: buylist.id,
+        cardId,
+        treatment,
+        condition: cardConditionEnum,
+      },
+    },
+    create: {
+      buylistId: buylist.id,
+      cardId,
+      treatment,
+      condition: cardConditionEnum,
+      maxPrice,
+      quantity: 1,
+      isBounty,
+      bountyPostedAt: isBounty ? new Date() : null,
+      autoBuy: isBounty ? autoBuy : false, // autoBuy only meaningful on a bounty
+    },
+    update: {
+      maxPrice,
+      // Promoting a want to a bounty stamps a fresh bountyPostedAt; demoting
+      // clears it but leaves the entry. autoBuy mirrors isBounty.
+      isBounty,
+      bountyPostedAt: isBounty ? new Date() : null,
+      autoBuy: isBounty ? autoBuy : false,
+    },
+  });
+
+  revalidatePath(`/card/${cardId}`);
+  revalidatePath("/");
 }
 
 export default async function CardDetailPage({
@@ -51,6 +128,19 @@ export default async function CardDetailPage({
       marketValue: { select: { marketMid: true, confidence: true } },
     },
     orderBy: { treatment: "asc" },
+  });
+
+  // Existing buylist entry for this user on this exact card+treatment.
+  // Used to pre-fill the "add to buylist" form so the affordance reads
+  // "edit my want" rather than "add" when one already exists.
+  const currentUser = await requireUser();
+  const existingEntry = await prisma.buylistEntry.findFirst({
+    where: {
+      cardId: card.id,
+      treatment: card.treatment,
+      buylist: { userId: currentUser.id },
+    },
+    orderBy: { isBounty: "desc" }, // prefer the bounty row if user has both NM + LP
   });
 
   // Recent sales of THIS treatment, last 30 days.
@@ -371,6 +461,65 @@ export default async function CardDetailPage({
                 </div>
               ))
             )}
+          </div>
+
+          {/* Want / Bounty — same form, isBounty toggle promotes to home page. */}
+          <div className="mt-6 pt-4 border-t border-border/40">
+            <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted mb-2">
+              {existingEntry?.isBounty ? "Your bounty" : existingEntry ? "On your want list" : "Want this card?"}
+            </p>
+            <form action={addToBuylist} className="space-y-2">
+              <input type="hidden" name="cardId" value={card.id} />
+              <input type="hidden" name="treatment" value={card.treatment} />
+              <input type="hidden" name="condition" value="NEAR_MINT" />
+
+              <label className="flex items-baseline justify-between gap-2 text-[11px]">
+                <span className="font-mono uppercase tracking-[0.1em] text-ink-muted">Max pay</span>
+                <span className="flex items-baseline gap-1">
+                  <span className="font-mono text-ink-muted">$</span>
+                  <input
+                    type="number"
+                    name="maxPrice"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    defaultValue={existingEntry ? Number(existingEntry.maxPrice).toFixed(2) : ""}
+                    placeholder="0.00"
+                    className="w-20 h-7 px-2 rounded border border-border/60 bg-surface-base text-ink-primary text-[12px] font-mono tabular-nums text-right focus-visible:outline-none focus-visible:border-gold/60"
+                  />
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="isBounty"
+                  value="true"
+                  defaultChecked={existingEntry?.isBounty ?? false}
+                  className="accent-gold"
+                />
+                <span className="text-[12px] text-ink-primary">Post as bounty</span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted">(public)</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer pl-5">
+                <input
+                  type="checkbox"
+                  name="autoBuy"
+                  value="true"
+                  defaultChecked={existingEntry?.autoBuy ?? false}
+                  className="accent-gold"
+                />
+                <span className="text-[12px] text-ink-primary">Auto-buy on match</span>
+              </label>
+
+              <button
+                type="submit"
+                className="w-full py-2 rounded border border-gold/60 bg-gold-dark/30 text-[10px] uppercase tracking-[0.12em] text-gold-light hover:bg-gold-dark/50 transition-colors"
+              >
+                {existingEntry ? "Update" : "Add"}
+              </button>
+            </form>
           </div>
 
           <div className="mt-6 pt-4 border-t border-border/40">

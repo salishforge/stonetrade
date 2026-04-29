@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { z } from "zod/v4";
+import { matchAgainstCollectionAdd } from "@/lib/bounties/match";
 
 const addCardSchema = z.object({
   cardId: z.string().min(1),
@@ -89,6 +90,17 @@ export async function POST(
       acquiredDate: new Date(),
       acquiredFrom: input.acquiredFrom ?? null,
     },
+  });
+
+  // Bounty notification: someone added the card to their collection. If a
+  // bounty exists for that card, ping the bounty owner so they can DM the
+  // collector. Auto-buy is intentionally NOT triggered on collection adds —
+  // a collector hasn't agreed to sell.
+  await matchAgainstCollectionAdd({
+    cardId: input.cardId,
+    treatment: input.treatment,
+    condition: input.condition,
+    collectorId: user.id,
   });
 
   return NextResponse.json({ data: collectionCard }, { status: 201 });

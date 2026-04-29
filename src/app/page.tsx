@@ -58,6 +58,27 @@ export default async function HomePage() {
   ]);
   const avgConfidence = Math.round(valueAgg._avg.confidence ?? 0);
 
+  // Open bounties — newest first. Public advertisements: this is the whole
+  // point of the bounty mode (versus a private want-list entry).
+  const openBounties = await prisma.buylistEntry.findMany({
+    where: { isBounty: true },
+    orderBy: { bountyPostedAt: "desc" },
+    take: 8,
+    include: {
+      card: {
+        select: {
+          id: true,
+          name: true,
+          cardNumber: true,
+          orbital: true,
+          rarity: true,
+          imageUrl: true,
+        },
+      },
+      buylist: { select: { user: { select: { username: true } } } },
+    },
+  });
+
   return (
     <div className="container mx-auto max-w-7xl px-4 pt-10 pb-20">
       {/* Masthead — small, factual, no marketing tropes. */}
@@ -96,6 +117,66 @@ export default async function HomePage() {
           </dl>
         </div>
       </header>
+
+      {/* Open bounties — public requests, paid in advance, on the front page. */}
+      {openBounties.length > 0 && (
+        <section className="mb-12">
+          <div className="flex items-baseline justify-between mb-4">
+            <div className="flex items-baseline gap-3">
+              <h2 className="font-display text-[22px] text-ink-primary tracking-tight" style={{ fontVariationSettings: "'opsz' 36" }}>
+                Open bounties
+              </h2>
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-crimson-light">
+                {openBounties.length} active
+              </span>
+            </div>
+            <Link
+              href="/bounties"
+              className="text-[11px] uppercase tracking-[0.12em] text-ink-secondary hover:text-gold transition-colors"
+            >
+              All bounties →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+            {openBounties.map((b) => (
+              <Link
+                key={b.id}
+                href={`/card/${b.card.id}`}
+                className="group block border border-gold-dark/40 bg-gold-dark/5 rounded-md p-3 hover:border-gold/60 hover:bg-gold-dark/15 transition-colors"
+              >
+                <div className="flex gap-3">
+                  <CardImage
+                    name={b.card.name}
+                    imageUrl={b.card.imageUrl}
+                    orbital={b.card.orbital}
+                    rarity={b.card.rarity}
+                    className="w-16 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium leading-tight text-ink-primary truncate">
+                      {b.card.name}
+                    </p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted mt-0.5">
+                      {b.card.cardNumber} · {b.condition.toLowerCase().replace("_", " ")}
+                    </p>
+                    <p className="font-mono text-[14px] tabular-nums text-gold mt-2">
+                      ${Number(b.maxPrice).toFixed(2)}
+                    </p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-muted mt-0.5">
+                      max · {b.buylist.user.username}
+                    </p>
+                    {b.autoBuy && (
+                      <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-gold-light mt-1">
+                        ⚡ auto-buy
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-10 lg:grid-cols-[1fr_280px]">
         {/* Recently listed — the showcase itself. */}

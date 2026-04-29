@@ -374,7 +374,20 @@ model BuylistEntry {
 
   autoNotify Boolean @default(true)
 
+  // Bounty: same shape as a buylist entry, but with `isBounty=true` it's
+  // surfaced publicly on the home page as "I want this card, will pay X".
+  // bountyPostedAt is the sort key on the home rail (newest first).
+  isBounty       Boolean   @default(false)
+  bountyPostedAt DateTime?
+
+  // When true, a matching listing (same card/treatment, condition >= bounty's,
+  // price <= maxPrice) will trigger the auto-buy path. Stub today: logs +
+  // notifies. Future: actually creates an Order on behalf of the bounty owner.
+  autoBuy Boolean @default(false)
+
   @@unique([buylistId, cardId, treatment, condition])
+  @@index([isBounty, bountyPostedAt])
+  @@index([cardId, isBounty])
 }
 
 // =============================================================================
