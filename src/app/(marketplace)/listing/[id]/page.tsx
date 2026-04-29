@@ -132,12 +132,22 @@ export default async function ListingDetailPage({
             </div>
 
             <div className="grid grid-cols-2 gap-3 mt-5">
-              <button
-                type="button"
-                className="h-11 rounded-md bg-gold text-[#1a1208] font-medium text-[14px] uppercase tracking-[0.08em] hover:bg-gold-light transition-colors"
-              >
-                Buy
-              </button>
+              {available > 0 ? (
+                <Link
+                  href={`/listing/${listing.id}/buy`}
+                  className="h-11 rounded-md bg-gold text-[#1a1208] font-medium text-[14px] uppercase tracking-[0.08em] hover:bg-gold-light transition-colors flex items-center justify-center"
+                >
+                  Buy
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="h-11 rounded-md border border-border/40 text-ink-muted font-medium text-[14px] uppercase tracking-[0.08em] cursor-not-allowed"
+                >
+                  Sold out
+                </button>
+              )}
               {listing.allowOffers ? (
                 <button
                   type="button"
