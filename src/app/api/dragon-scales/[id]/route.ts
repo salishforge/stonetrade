@@ -22,7 +22,7 @@ export async function PATCH(
 
   const existing = await prisma.dragonScale.findUnique({
     where: { id },
-    include: { card: { select: { isToken: true } } },
+    include: { card: { select: { isToken: true, treatment: true } } },
   });
   if (!existing || existing.userId !== user.id) {
     return NextResponse.json({ error: "Dragon scale not found" }, { status: 404 });
@@ -30,6 +30,14 @@ export async function PATCH(
 
   const input = parsed.data;
   const bonusVariant = existing.card.isToken ? "NONE" : input.bonusVariant;
+
+  // Stonefoil 1/1: refuse to bump quantity above 1 even on update.
+  if (existing.card.treatment === "Stonefoil" && input.quantity != null && input.quantity > 1) {
+    return NextResponse.json(
+      { error: "Stonefoil cards are 1/1 — quantity must be 1" },
+      { status: 400 },
+    );
+  }
 
   await prisma.dragonScale.update({
     where: { id },
