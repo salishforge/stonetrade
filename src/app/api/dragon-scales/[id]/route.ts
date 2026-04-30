@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { updateDragonScaleSchema } from "@/lib/validators/dragon";
-import { recalculateUserDragon } from "@/lib/dragon/recalculate";
+import { recalculateForUserAndPacks } from "@/lib/dragon/recalculate";
 
 export async function PATCH(
   request: NextRequest,
@@ -41,7 +41,7 @@ export async function PATCH(
     },
   });
 
-  await recalculateUserDragon(user.id);
+  await recalculateForUserAndPacks(user.id);
 
   const fresh = await prisma.dragonScale.findUniqueOrThrow({
     where: { id },
@@ -79,7 +79,7 @@ export async function DELETE(
   }
 
   await prisma.dragonScale.delete({ where: { id } });
-  await recalculateUserDragon(user.id);
+  await recalculateForUserAndPacks(user.id);
 
   return NextResponse.json({ data: { id } });
 }
