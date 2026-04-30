@@ -79,6 +79,25 @@ describe("mapPlatformCardToMarketplace", () => {
     expect(variants[0].flavorText).toBe("Once whispered, always heard.");
   });
 
+  it("rarity: single-letter codes expand to long forms (CotS exports use these)", async () => {
+    const cases: Array<[string, string]> = [
+      ["C", "Common"],
+      ["U", "Uncommon"],
+      ["R", "Rare"],
+      ["E", "Epic"],
+      ["M", "Mythic"],
+    ];
+    for (const [input, expected] of cases) {
+      const variants = mapPlatformCardToMarketplace({ ...baseCard, rarity: input }, "g1", "s1");
+      expect(variants[0].rarity).toBe(expected);
+    }
+  });
+
+  it("rarity: long-form lowercase still capitalises (Existence platform format)", async () => {
+    const variants = mapPlatformCardToMarketplace({ ...baseCard, rarity: "epic" }, "g1", "s1");
+    expect(variants[0].rarity).toBe("Epic");
+  });
+
   it("respects WONDERS_PLATFORM_IMAGE_BASE_URL override", async () => {
     const original = process.env.WONDERS_PLATFORM_IMAGE_BASE_URL;
     process.env.WONDERS_PLATFORM_IMAGE_BASE_URL = "https://cdn.example/wotf";

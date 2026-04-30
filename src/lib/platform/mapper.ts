@@ -18,9 +18,25 @@ interface MarketplaceCardInput {
   imageUrl: string | null;
 }
 
-/** Capitalize first letter of rarity (platform uses lowercase) */
+// CotS exports rarities as single-letter codes ("C", "U", "R", "E", "M", "T")
+// while Existence sends the lowercase long form ("common", "uncommon"…). The
+// Dragon Cup scoring engine (src/lib/dragon/constants.ts) only recognises the
+// long forms, so single-letter codes are expanded here. Tokens map to "Token"
+// defensively even though mapPlatformCardToMarketplace filters them out before
+// the mapped rarity is used.
+const SINGLE_LETTER_RARITY: ReadonlyMap<string, string> = new Map([
+  ["C", "Common"],
+  ["U", "Uncommon"],
+  ["R", "Rare"],
+  ["E", "Epic"],
+  ["M", "Mythic"],
+  ["T", "Token"],
+]);
+
 function normalizeRarity(rarity: string): string {
   if (!rarity) return rarity;
+  const expanded = SINGLE_LETTER_RARITY.get(rarity.toUpperCase());
+  if (expanded && rarity.length === 1) return expanded;
   return rarity.charAt(0).toUpperCase() + rarity.slice(1).toLowerCase();
 }
 
