@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { createPackSchema } from "@/lib/validators/pack";
+import { recalculatePackDragon } from "@/lib/dragon/recalculate";
 
 // GET: packs the current user is a member of (current — leftAt = null).
 export async function GET() {
@@ -61,6 +62,12 @@ export async function POST(request: NextRequest) {
     });
     return created;
   });
+
+  // Seed the pack's pooled DragonRegistration immediately from the founder's
+  // existing scales. Without this, a founder who already has ≥10,000 points
+  // wouldn't see a pack Dragon (or be able to register it for a tournament)
+  // until they happen to add/edit a scale.
+  await recalculatePackDragon(pack.id);
 
   return NextResponse.json({ data: pack }, { status: 201 });
 }
