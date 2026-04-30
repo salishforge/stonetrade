@@ -55,11 +55,16 @@ export const TOKEN_POINTS: Record<ScoringTreatment, number> = {
 export const STONESEEKER_LORE_MULTIPLIER = 3;
 
 // Cards published in Call of the Stones and Set 3 earn an additional 35% on
-// top of their final per-copy score (PDF slides 7 + 8 footnotes). The set
-// codes here are placeholders — Set 3 has not been published as of the
-// 2026-04-30 PDF revision and its set code may need updating once announced.
+// top of their final per-copy score (PDF slides 7 + 8 footnotes).
+//
+// "CotS" is the canonical Call of the Stones set code as carried by the
+// Wonders platform sync (see src/lib/platform/sync.ts) and seeded into
+// `Set.code`. Set 3 has not been announced as of the 2026-04-30 PDF
+// revision; "SET3" is a placeholder that should be replaced with the
+// real code once published — until then, no card matches and no bonus
+// fires for that set.
 export const FRESHER_SCALE_MULTIPLIER = 1.35;
-export const FRESHER_SCALE_SET_CODES: ReadonlyArray<string> = ["CTS", "SET3"];
+export const FRESHER_SCALE_SET_CODES: ReadonlyArray<string> = ["CotS", "SET3"];
 
 // Rarity bands used by several bonus tables.
 const COMMON_TO_RARE: ReadonlyArray<ScoringRarity> = ["Common", "Uncommon", "Rare"];
