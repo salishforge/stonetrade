@@ -192,6 +192,26 @@ enum ContractAuditAction {
 }
 
 // =============================================================================
+// Dragon Cup Phase 3 — Tournament events
+// =============================================================================
+
+enum TournamentEventStatus {
+  UPCOMING
+  REGISTRATION_OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentRegistrationStatus {
+  REGISTERED
+  CHECKED_IN
+  WITHDRAWN
+  DISQUALIFIED
+  COMPLETED
+}
+
+// =============================================================================
 // Game Registry
 // =============================================================================
 
@@ -773,6 +793,7 @@ model User {
   contractsAsRider        ContractVersion[]    @relation("ContractRider")
   contractSignatories     ContractSignatory[]
   contractAuditEntries    ContractAuditLog[]   @relation("ContractAuditActor")
+  tournamentRegistrations TournamentRegistration[] @relation("RiderRegistrations")
 }
 
 // =============================================================================
@@ -916,6 +937,8 @@ model DragonRegistration {
 
   userOwner User?        @relation("UserDragons", fields: [userOwnerId], references: [id], onDelete: Cascade)
   packOwner HuntingPack? @relation("PackDragons", fields: [packOwnerId], references: [id], onDelete: Cascade)
+
+  tournamentRegistrations TournamentRegistration[]
 
   // Postgres treats NULL as distinct in unique indexes pre-15, so the two
   // unique constraints are effectively partial: one enforces uniqueness for
@@ -1089,4 +1112,79 @@ model ContractAuditLog {
   actor    User?            @relation("ContractAuditActor", fields: [actorUserId], references: [id])
 
   @@index([contractId, createdAt])
+}
+
+// =============================================================================
+// Tournament Events (Phase 3)
+// =============================================================================
+//
+// A TournamentEvent splits its prize money into two pools per the PDF:
+// basePrizePool pays the Top 16 finishers regardless of collection size;
+// dragonGoldPool pays the Top 32 by Weighted Points = declared × finish
+// multiplier. Results land via admin endpoint after the event; the payout
+// engine in src/lib/tournament/payout.ts is the single source of truth.
+
+model TournamentEvent {
+  id             String                @id @default(cuid())
+  name           String
+  slug           String                @unique
+  description    String?
+  eventDate      DateTime
+  basePrizePool  Decimal               @default(0) @db.Decimal(12, 2)
+  dragonGoldPool Decimal               @default(0) @db.Decimal(12, 2)
+  status         TournamentEventStatus @default(UPCOMING)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  registrations TournamentRegistration[]
+
+  @@index([eventDate])
+  @@index([status])
+}
+
+// One row per (event × dragon). Captures which rider is competing on
+// behalf of the dragon (the PDF rule "a Stoneseeker can only ride one
+// Dragon" is enforced per-event by the @@unique on (eventId, riderId)).
+// declaredPoints is the hunter-declared snapshot — may be lower than actual
+// to give a safety margin against accidental over-declaration; payouts use
+// the declared value.
+model TournamentRegistration {
+  id                   String                       @id @default(cuid())
+  eventId              String
+  dragonRegistrationId String
+  dragonRiderUserId    String
+  declaredPoints       Int
+  status               TournamentRegistrationStatus @default(REGISTERED)
+  createdAt            DateTime                     @default(now())
+  withdrawnAt          DateTime?
+
+  event  TournamentEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  dragon DragonRegistration @relation(fields: [dragonRegistrationId], references: [id], onDelete: Restrict)
+  rider  User               @relation("RiderRegistrations", fields: [dragonRiderUserId], references: [id])
+  result TournamentResult?
+
+  @@unique([eventId, dragonRegistrationId])
+  @@unique([eventId, dragonRiderUserId])
+  @@index([eventId, status])
+  @@index([dragonRiderUserId])
+}
+
+// One result row per finishing dragon. multiplier + weighted + payouts are
+// cached snapshots of what the payout engine produced — re-deriving on read
+// would be wasted work, and keeping them recorded matters for audit (the
+// hunter sees the math that produced their payout).
+model TournamentResult {
+  id                    String    @id @default(cuid())
+  registrationId        String    @unique
+  finishingPosition     Int
+  multiplier            Decimal   @db.Decimal(6, 2)
+  weightedPoints        Int
+  basePayoutCents       Int       @default(0)
+  dragonGoldPayoutCents Int       @default(0)
+  paidOutAt             DateTime?
+  createdAt             DateTime  @default(now())
+
+  registration TournamentRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@index([finishingPosition])
 }
