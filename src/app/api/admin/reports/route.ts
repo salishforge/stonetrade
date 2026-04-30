@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth";
+import { getAdminUser } from "@/lib/auth";
 import { recalculateCardValue } from "@/lib/pricing/recalculate";
 
 export async function GET() {
+  const admin = await getAdminUser();
+  if (!admin) return NextResponse.json({ error: "Admin required" }, { status: 403 });
+
   const reports = await prisma.saleReport.findMany({
     where: { verified: false },
     include: {
@@ -18,7 +21,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  const user = await requireUser();
+  const admin = await getAdminUser();
+  if (!admin) return NextResponse.json({ error: "Admin required" }, { status: 403 });
+
   const body = await request.json();
   const { reportId, action } = body as { reportId: string; action: "verify" | "reject" };
 
@@ -34,7 +39,7 @@ export async function PATCH(request: NextRequest) {
   if (action === "verify") {
     await prisma.saleReport.update({
       where: { id: reportId },
-      data: { verified: true, verifiedBy: user.id },
+      data: { verified: true, verifiedBy: admin.id },
     });
 
     // Mark the corresponding price data point as verified

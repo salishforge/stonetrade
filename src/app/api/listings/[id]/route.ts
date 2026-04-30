@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { updateListingSchema } from "@/lib/validators/listing";
+import { recalculateCardValue } from "@/lib/pricing/recalculate";
+
+async function recomputeIfPossible(cardId: string | null | undefined) {
+  if (!cardId) return;
+  try {
+    await recalculateCardValue(cardId);
+  } catch (err) {
+    console.error("CardMarketValue recompute failed for", cardId, err);
+  }
+}
 
 export async function GET(
   _request: Request,
@@ -62,6 +72,8 @@ export async function PATCH(
     data: parsed.data,
   });
 
+  await recomputeIfPossible(listing.cardId);
+
   return NextResponse.json({ data: updated });
 }
 
@@ -84,6 +96,8 @@ export async function DELETE(
     where: { id },
     data: { status: "CANCELLED" },
   });
+
+  await recomputeIfPossible(listing.cardId);
 
   return NextResponse.json({ data: { success: true } });
 }

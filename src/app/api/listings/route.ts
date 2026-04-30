@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { createListingSchema } from "@/lib/validators/listing";
+import { recalculateCardValue } from "@/lib/pricing/recalculate";
+import { matchAgainstNewListing } from "@/lib/bounties/match";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -76,6 +78,27 @@ export async function POST(request: NextRequest) {
     include: {
       card: { select: { name: true, cardNumber: true } },
     },
+  });
+
+  // Refresh CardMarketValue (supply/scarcity drift). Wrap so a recompute
+  // outage doesn't block the seller's listing creation.
+  try {
+    await recalculateCardValue(input.cardId);
+  } catch (err) {
+    console.error("CardMarketValue recompute failed for", input.cardId, err);
+  }
+
+  // Bounty matching: notify any user with a matching bounty; if their bounty
+  // has autoBuy=true, the helper logs a "would fire" line (real auto-buy is
+  // out of scope here). Helper swallows its own errors — we don't block the
+  // listing on a notification failure.
+  await matchAgainstNewListing({
+    listingId: listing.id,
+    cardId: listing.cardId,
+    treatment: listing.treatment,
+    condition: listing.condition,
+    price: Number(listing.price),
+    sellerId: user.id,
   });
 
   return NextResponse.json({ data: listing }, { status: 201 });

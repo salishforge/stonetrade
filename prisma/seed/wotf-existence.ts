@@ -10,6 +10,17 @@ const OCM_SERIAL_LIMITS: Record<string, number> = {
   Mythic: 10,
 };
 
+const IMAGE_BASE_URL = process.env.WONDERS_PLATFORM_IMAGE_BASE_URL ?? "http://localhost:3100/cards";
+
+/** Mirrors src/lib/platform/mapper.ts so seed-data cards still render an image. */
+function imageUrlFromCardNumber(cardNumber: string): string {
+  const bare = cardNumber.split("/")[0];
+  const filename = bare.startsWith("CotS_") || bare.startsWith("Existence_")
+    ? `${bare}.webp`
+    : `Existence_${bare}.webp`;
+  return `${IMAGE_BASE_URL.replace(/\/$/, "")}/${filename}`;
+}
+
 const TREATMENTS = [
   { name: "Classic Paper", serialized: false },
   { name: "Classic Foil", serialized: false },
@@ -59,6 +70,15 @@ export async function seedWotfExistence(prisma: PrismaClient) {
         serialTotal = 1;
       }
 
+      const dragonFlags = card as Partial<{
+        isStoneseeker: boolean;
+        isLoreMythic: boolean;
+        isToken: boolean;
+      }>;
+      const isStoneseeker = dragonFlags.isStoneseeker ?? false;
+      const isLoreMythic = dragonFlags.isLoreMythic ?? false;
+      const isToken = dragonFlags.isToken ?? false;
+
       await prisma.card.upsert({
         where: {
           setId_cardNumber_treatment: {
@@ -72,6 +92,10 @@ export async function seedWotfExistence(prisma: PrismaClient) {
           orbital: card.orbital ?? null,
           rarity: card.rarity,
           cardType: card.cardType,
+          imageUrl: imageUrlFromCardNumber(card.cardNumber),
+          isStoneseeker,
+          isLoreMythic,
+          isToken,
         },
         create: {
           gameId: game.id,
@@ -84,6 +108,10 @@ export async function seedWotfExistence(prisma: PrismaClient) {
           treatment: treatment.name,
           isSerialized,
           serialTotal,
+          isStoneseeker,
+          isLoreMythic,
+          isToken,
+          imageUrl: imageUrlFromCardNumber(card.cardNumber),
         },
       });
       cardCount++;

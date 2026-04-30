@@ -2,14 +2,26 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * StoneTrade design tokens — mirror the Wonders platform's frontend doctrine.
+ * Palette philosophy: "warm backroom at a lit card table" — deep charcoal
+ * backgrounds with a violet lean, aged-brass gold accent, oxidized crimson,
+ * parchment text. Dark-only by intent (table-in-a-room metaphor); no light
+ * mode is on the roadmap.
+ *
+ * The tokens here are 1:1 with the platform's tokens.css.ts so the two
+ * products feel like the same product family.
+ */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-mono);
+  --font-display: var(--font-fraunces);
+  --font-heading: var(--font-fraunces);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -18,11 +30,13 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
+
   --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -39,6 +53,30 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* StoneTrade-native tokens, exposed as Tailwind utilities. */
+  --color-surface-base: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-ink-primary: var(--ink-primary);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dark: var(--gold-dark);
+  --color-crimson: var(--crimson);
+  --color-crimson-light: var(--crimson-light);
+  --color-signal-legal: var(--signal-legal);
+  --color-signal-illegal: var(--signal-illegal);
+  --color-signal-warn: var(--signal-warn);
+
+  --color-orbital-petraia: var(--orbital-petraia);
+  --color-orbital-solfera: var(--orbital-solfera);
+  --color-orbital-thalwind: var(--orbital-thalwind);
+  --color-orbital-umbrathene: var(--orbital-umbrathene);
+  --color-orbital-heliosynth: var(--orbital-heliosynth);
+  --color-orbital-boundless: var(--orbital-boundless);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -49,72 +87,73 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  /* ─── Surface ─────────────────────────────────────────────────────────── */
+  --surface-base: #0e0c11;
+  --surface-raised: #18151f;
+  --surface-overlay: #231f2d;
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* ─── Ink ─────────────────────────────────────────────────────────────── */
+  --ink-primary: #e5dfd0;
+  --ink-secondary: #998f80;
+  --ink-muted: #5c5449;
+
+  /* ─── Accent ──────────────────────────────────────────────────────────── */
+  --gold: #c49a3c;
+  --gold-light: #dbb96a;
+  --gold-dark: #7a5e1e;
+  --crimson: #a82d2d;
+  --crimson-light: #c44040;
+
+  /* ─── Signal ──────────────────────────────────────────────────────────── */
+  --signal-legal: #2e7d4f;
+  --signal-illegal: #a82d2d;
+  --signal-warn: #8a6520;
+
+  /* ─── Orbital ─────────────────────────────────────────────────────────── */
+  --orbital-petraia: #8b6914;
+  --orbital-solfera: #dc143c;
+  --orbital-thalwind: #4169e1;
+  --orbital-umbrathene: #6b3fa0;
+  --orbital-heliosynth: #ffd700;
+  --orbital-boundless: #228b22;
+
+  /* ─── shadcn token mapping ─── */
+  /* Map shadcn's named slots onto our warm-backroom palette so every existing
+   * shadcn primitive (Button, Card, Badge, Input, Select, etc.) inherits the
+   * theme without per-component overrides. */
+  --background: var(--surface-base);
+  --foreground: var(--ink-primary);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink-primary);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--ink-primary);
+  --primary: var(--gold);
+  --primary-foreground: #1a1208;
+  --secondary: var(--surface-overlay);
+  --secondary-foreground: var(--ink-primary);
+  --muted: var(--surface-overlay);
+  --muted-foreground: var(--ink-secondary);
+  --accent: var(--surface-overlay);
+  --accent-foreground: var(--gold-light);
+  --destructive: var(--crimson);
+  --destructive-foreground: var(--ink-primary);
+  --border: rgba(229, 223, 208, 0.08);
+  --input: rgba(229, 223, 208, 0.10);
+  --ring: var(--gold);
+  --chart-1: var(--gold);
+  --chart-2: var(--orbital-thalwind);
+  --chart-3: var(--orbital-solfera);
+  --chart-4: var(--orbital-umbrathene);
+  --chart-5: var(--orbital-boundless);
+  --radius: 0.5rem;
+  --sidebar: var(--surface-raised);
+  --sidebar-foreground: var(--ink-primary);
+  --sidebar-primary: var(--gold);
+  --sidebar-primary-foreground: #1a1208;
+  --sidebar-accent: var(--surface-overlay);
+  --sidebar-accent-foreground: var(--gold-light);
+  --sidebar-border: rgba(229, 223, 208, 0.08);
+  --sidebar-ring: var(--gold);
 }
 
 @layer base {
@@ -122,9 +161,43 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "cv01", "cv11";
   }
   html {
-    @apply font-sans;
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
+  /* Display headings adopt Fraunces with editorial optical-size weight. */
+  .font-display,
+  h1.font-display,
+  h2.font-display {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-variation-settings: "opsz" 72;
+    letter-spacing: -0.01em;
+  }
+  /* Numeric values use mono so prices/quantities don't reflow when digits change. */
+  .num,
+  .font-mono {
+    font-family: var(--font-mono), "JetBrains Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Selection — warm gold cast instead of the default cobalt. */
+  ::selection {
+    background: var(--gold-dark);
+    color: var(--ink-primary);
+  }
+}
+
+/* Reduced-motion contract — every transition that has weight collapses to an
+ * instant state change plus a 100ms fade. Per platform doctrine §6.6:
+ * reduced-motion is a supported mode, not a fallback. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 100ms !important;
+    scroll-behavior: auto !important;
   }
 }

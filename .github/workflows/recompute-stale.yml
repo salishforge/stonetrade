@@ -1,0 +1,25 @@
+name: Hourly recompute-stale
+
+on:
+  schedule:
+    - cron: "17 * * * *" # every hour at :17 to spread load away from the top
+  workflow_dispatch: {} # manual trigger for ad-hoc kicks
+
+jobs:
+  recompute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/admin/recompute-stale
+        env:
+          BASE_URL: ${{ secrets.STONETRADE_BASE_URL }}
+          CRON_TOKEN: ${{ secrets.STONETRADE_CRON_TOKEN }}
+        run: |
+          if [ -z "$BASE_URL" ] || [ -z "$CRON_TOKEN" ]; then
+            echo "STONETRADE_BASE_URL and STONETRADE_CRON_TOKEN must be set as repo secrets"
+            exit 1
+          fi
+          curl -fsS -X POST \
+            "$BASE_URL/api/admin/recompute-stale?olderThanMinutes=60&maxCards=500" \
+            -H "Authorization: Bearer $CRON_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{}'

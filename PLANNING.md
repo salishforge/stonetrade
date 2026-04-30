@@ -748,7 +748,7 @@ The `decimal.js` dependency is already in `package.json`. Enforce: **all monetar
 | # | Question | Owner | Blocker For |
 |---|----------|-------|-------------|
 | 1 | Does `wonders-ccg-platform` belong to Carde.io or Salishforge? Spec §8 references compete.wondersccg.com as Carde.io's. | Product | All platform integration work |
-| 2 | Will BJBA share the same platform service or require its own? | Product | Multi-game roadmap |
+| 2 | Will BOBA share the same platform service or require its own? | Product | Multi-game roadmap |
 | 3 | What is the legal exposure on mystery packs in WA / TX / CA? | Legal | Mystery pack launch (Phase 3) |
 | 4 | Stripe Connect or Stripe Standard for sellers? Affects fee math. | Finance | Phase 1 launch |
 | 5 | Confidence tier thresholds — calibrate against real data after Phase 1 launch | Engineering | Phase 2 ship |

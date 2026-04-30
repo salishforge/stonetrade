@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { CardImage } from "./CardImage";
-import { Badge } from "@/components/ui/badge";
 
 interface CardData {
   id: string;
@@ -12,6 +11,7 @@ interface CardData {
   rarity: string;
   cardType: string;
   treatment: string;
+  imageUrl?: string | null;
   game: { name: string; slug: string };
   set: { name: string; code: string };
   marketValue: {
@@ -30,14 +30,14 @@ function formatPrice(value: unknown): string {
 export function CardGrid({ cards }: { cards: CardData[] }) {
   if (cards.length === 0) {
     return (
-      <div className="text-center py-16 text-muted-foreground">
-        No cards found. Try adjusting your filters.
+      <div className="font-mono text-[12px] uppercase tracking-[0.08em] text-ink-muted py-16 text-center">
+        No cards match these filters
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
       {cards.map((card) => (
         <Link
           key={card.id}
@@ -46,24 +46,23 @@ export function CardGrid({ cards }: { cards: CardData[] }) {
         >
           <CardImage
             name={card.name}
+            imageUrl={card.imageUrl}
             orbital={card.orbital}
             rarity={card.rarity}
-            className="transition-transform group-hover:scale-[1.02]"
+            className="transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-[0_8px_24px_rgba(0,0,0,0.55),0_4px_8px_rgba(0,0,0,0.3)]"
           />
-          <div className="space-y-0.5 px-0.5">
-            <p className="text-sm font-medium leading-tight truncate">{card.name}</p>
-            <div className="flex items-center gap-1.5">
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                {card.rarity}
-              </Badge>
-              {card.orbital && (
-                <span className="text-[10px] text-muted-foreground">{card.orbital}</span>
-              )}
+          <div className="space-y-1 px-0.5">
+            <p className="text-[13px] font-medium leading-tight text-ink-primary truncate">
+              {card.name}
+            </p>
+            <div className="flex items-baseline gap-2 text-[10px] uppercase tracking-[0.08em] text-ink-muted font-mono">
+              <span>{card.rarity}</span>
+              {card.orbital && <span>· {card.orbital}</span>}
             </div>
-            <p className="text-sm font-semibold">
+            <p className="font-mono text-[13px] tabular-nums">
               {card.marketValue
-                ? formatPrice(card.marketValue.marketMid)
-                : <span className="text-muted-foreground text-xs">No price data</span>
+                ? <span className="text-ink-primary">{formatPrice(card.marketValue.marketMid)}</span>
+                : <span className="text-ink-muted text-[11px] uppercase tracking-[0.08em]">No price</span>
               }
             </p>
           </div>

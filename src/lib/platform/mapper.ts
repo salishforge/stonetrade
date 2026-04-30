@@ -14,6 +14,8 @@ interface MarketplaceCardInput {
   isSerialized: boolean;
   serialTotal: number | null;
   rulesText: string | null;
+  flavorText: string | null;
+  imageUrl: string | null;
 }
 
 /** Capitalize first letter of rarity (platform uses lowercase) */
@@ -26,6 +28,39 @@ function normalizeRarity(rarity: string): string {
 function abilitiesToRulesText(abilities: string[] | null): string | null {
   if (!abilities || abilities.length === 0) return null;
   return abilities.join("; ");
+}
+
+/**
+ * Compute the image URL for a card. The platform stores images at
+ * frontend/public/cards/{prefix}_{rest}.webp where prefix is "Existence" or
+ * "CotS". Maps the platform's card_number formats to those filenames:
+ *
+ *   "CotS_282"   → CotS_282.webp           (already prefixed)
+ *   "Existence_*"→ Existence_*.webp        (already prefixed)
+ *   "E_036"      → Existence_036.webp      (drop "E_", apply Existence prefix)
+ *   "T-019"      → Existence_T-019.webp    (token, prepend Existence_)
+ *   "P-001"      → Existence_P-001.webp    (promo, prepend Existence_)
+ *   "A1-298"     → Existence_A1-298.webp   (alt-art, prepend Existence_)
+ *   "001"        → Existence_001.webp      (bare collector, prepend Existence_)
+ *
+ * WONDERS_PLATFORM_IMAGE_BASE_URL controls the host (dev nginx, prod CDN).
+ */
+function imageUrlFromCardNumber(cardNumber: string): string {
+  const baseUrl =
+    process.env.WONDERS_PLATFORM_IMAGE_BASE_URL ?? "http://localhost:3000/cards";
+  // Trim a "/401" suffix if present — image filenames don't have it.
+  const bare = cardNumber.split("/")[0];
+
+  let filename: string;
+  if (bare.startsWith("CotS_") || bare.startsWith("Existence_")) {
+    filename = `${bare}.webp`;
+  } else if (bare.startsWith("E_")) {
+    // Platform stores Existence cards as "E_036"; image file is "Existence_036.webp".
+    filename = `Existence_${bare.slice(2)}.webp`;
+  } else {
+    filename = `Existence_${bare}.webp`;
+  }
+  return `${baseUrl.replace(/\/$/, "")}/${filename}`;
 }
 
 /**
@@ -72,6 +107,14 @@ export function mapPlatformCardToMarketplace(
       isSerialized,
       serialTotal,
       rulesText,
+      // The platform's `image_url` column is unpopulated; images live on the
+      // frontend container's filesystem. Fall back to the platform-derived URL
+      // when the API doesn't supply one.
+      flavorText: card.flavor_text ?? null,
+      imageUrl:
+        (typeof card.image_url === "string" && card.image_url.length > 0)
+          ? card.image_url
+          : imageUrlFromCardNumber(card.card_number),
     };
   });
 }

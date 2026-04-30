@@ -1,0 +1,24 @@
+name: Evaluate alerts
+
+on:
+  schedule:
+    - cron: "33 */6 * * *" # every 6h at :33; 24h cooldown means more frequent gains nothing
+  workflow_dispatch: {}
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/admin/alerts/evaluate
+        env:
+          BASE_URL: ${{ secrets.STONETRADE_BASE_URL }}
+          CRON_TOKEN: ${{ secrets.STONETRADE_CRON_TOKEN }}
+        run: |
+          if [ -z "$BASE_URL" ] || [ -z "$CRON_TOKEN" ]; then
+            echo "STONETRADE_BASE_URL and STONETRADE_CRON_TOKEN must be set as repo secrets"
+            exit 1
+          fi
+          curl -fsS -X POST \
+            "$BASE_URL/api/admin/alerts/evaluate" \
+            -H "Authorization: Bearer $CRON_TOKEN" \
+            -d '{}'

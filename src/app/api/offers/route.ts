@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
+import { triggerNotification } from "@/lib/notify/novu";
 import { z } from "zod/v4";
 
 const createOfferSchema = z.object({
@@ -46,7 +47,10 @@ export async function POST(request: NextRequest) {
 
   const { listingId, amount, message } = parsed.data;
 
-  const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+  const listing = await prisma.listing.findUnique({
+    where: { id: listingId },
+    include: { seller: true, card: { select: { name: true } } },
+  });
   if (!listing || listing.status !== "ACTIVE") {
     return NextResponse.json({ error: "Listing not available" }, { status: 404 });
   }
@@ -68,6 +72,31 @@ export async function POST(request: NextRequest) {
       message: message ?? null,
       expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
     },
+  });
+
+  // Notify seller. The offer is the source-of-truth idempotency key — Novu
+  // dedupes on it, so a retried POST that returns the same offer.id won't
+  // double-fire (Prisma create is not idempotent on its own, but the call
+  // path here is single-shot — safe enough).
+  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  await triggerNotification({
+    workflowId: "offer-received",
+    to: {
+      id: listing.seller.id,
+      email: listing.seller.email,
+      username: listing.seller.username,
+    },
+    payload: {
+      offerId: offer.id,
+      listingId: listing.id,
+      cardName: listing.card?.name ?? "Listing",
+      buyerUsername: user.username,
+      offerAmount: amount.toFixed(2),
+      listingPrice: Number(listing.price).toFixed(2),
+      message: message ?? "",
+      offerUrl: `${appBaseUrl}/listings/offers`,
+    },
+    transactionId: offer.id,
   });
 
   return NextResponse.json({ data: offer }, { status: 201 });

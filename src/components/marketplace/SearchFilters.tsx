@@ -1,145 +1,177 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { useSearchParams } from "next/navigation";
 
 const ORBITALS = ["Petraia", "Solfera", "Thalwind", "Umbrathene", "Heliosynth", "Boundless"];
 const RARITIES = ["Common", "Uncommon", "Rare", "Epic", "Mythic"];
 const CARD_TYPES = ["Wonder", "Spell", "Item", "Land"];
 const TREATMENTS = ["Classic Paper", "Classic Foil", "Formless Foil", "OCM", "Stonefoil"];
+// Set list is hardcoded here — these are the marketplace's known set codes,
+// kept in sync with sync.ts WOTF_SETS. New sets need entries in both places.
+const WOTF_SETS = [
+  { code: "EX1", label: "Existence" },
+  { code: "CotS", label: "Call of the Stones" },
+];
+const SORTS = [
+  { value: "cardNumber", label: "Card #" },
+  { value: "name", label: "Name" },
+  { value: "rarity", label: "Rarity" },
+  { value: "price-low", label: "Price · Low → High" },
+  { value: "price-high", label: "Price · High → Low" },
+];
 
+/**
+ * Plain HTML <form method="get" action="/browse"> so filter changes are
+ * regular browser navigations, not Next.js soft nav. This works even
+ * without JavaScript; with JS, the form auto-submits when any field
+ * changes for an instant-feel UX.
+ *
+ * Why not React Router state: Next 16's Router Cache served stale segments
+ * for search-param-only navigation, neither push() / replace() / refresh()
+ * / startTransition reliably invalidated it. A real browser navigation
+ * sidesteps the entire problem.
+ */
 export function SearchFilters() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
-  const updateFilter = useCallback(
-    (key: string, value: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (value && value !== "all") {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
-      params.set("page", "1");
-      router.push(`/browse?${params.toString()}`);
-    },
-    [router, searchParams],
-  );
+  // Auto-submit when any select changes. Find the parent form via DOM.
+  function autoSubmit(e: React.ChangeEvent<HTMLSelectElement>) {
+    e.currentTarget.form?.requestSubmit();
+  }
 
-  const clearAll = useCallback(() => {
-    router.push("/browse");
-  }, [router]);
+  // Build "preserve other params" data attribute snapshots: when a select
+  // holds value === "all", we don't want it serialized into the URL. We
+  // strip empty/all-named entries by giving them no `name` attribute (a
+  // form field without a name isn't submitted).
+  const value = (key: string, fallback: string) => searchParams.get(key) ?? fallback;
+  const treatmentValue = value("treatment", "Classic Paper");
+  const sortValue = value("sort", "cardNumber");
 
   return (
-    <div className="space-y-4">
-      <div>
-        <Label htmlFor="search" className="text-xs mb-1.5">Search</Label>
-        <Input
-          id="search"
-          placeholder="Card name..."
-          defaultValue={searchParams.get("q") ?? ""}
-          onChange={(e) => {
-            const value = e.target.value;
-            // Debounce-like: update on empty or 2+ chars
-            if (value.length === 0 || value.length >= 2) {
-              updateFilter("q", value || null);
-            }
-          }}
-        />
-      </div>
+    <form
+      method="get"
+      action="/browse"
+      className="space-y-5 font-mono text-[12px]"
+    >
+      <FieldGroup label="Search">
+        <div className="relative">
+          <input
+            type="search"
+            name="q"
+            defaultValue={searchParams.get("q") ?? ""}
+            placeholder="Card name…"
+            className="w-full h-9 pl-2 pr-7 rounded-md border border-border/60 bg-surface-base text-ink-primary text-[13px] placeholder:text-ink-muted focus-visible:outline-none focus-visible:border-gold/60"
+          />
+        </div>
+      </FieldGroup>
 
-      <div>
-        <Label className="text-xs mb-1.5">Game</Label>
-        <Select
-          value={searchParams.get("game") ?? "all"}
-          onValueChange={(v) => updateFilter("game", v)}
+      <FieldGroup label="Sort">
+        <select
+          name="sort"
+          defaultValue={sortValue}
+          onChange={autoSubmit}
+          className="w-full h-9 px-2 rounded-md border border-border/60 bg-surface-base text-ink-primary text-[12px] focus-visible:outline-none focus-visible:border-gold/60 cursor-pointer"
         >
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Games</SelectItem>
-            <SelectItem value="wotf">Wonders of the First</SelectItem>
-            <SelectItem value="bjba">Bo Jackson Battle Arena</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+          {SORTS.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+      </FieldGroup>
 
-      <div>
-        <Label className="text-xs mb-1.5">Orbital</Label>
-        <Select
-          value={searchParams.get("orbital") ?? "all"}
-          onValueChange={(v) => updateFilter("orbital", v)}
+      <FilterSelect label="Game" name="game" current={value("game", "all")} options={[
+        { value: "all", label: "All games" },
+        { value: "wotf", label: "Wonders of the First" },
+        { value: "boba", label: "Bo Jackson Battle Arena" },
+      ]} onChange={autoSubmit} />
+
+      <FilterSelect label="Set" name="set" current={value("set", "all")} options={[
+        { value: "all", label: "All sets" },
+        ...WOTF_SETS.map((s) => ({ value: s.code, label: s.label })),
+      ]} onChange={autoSubmit} />
+
+      <FilterSelect label="Orbital" name="orbital" current={value("orbital", "all")} options={[
+        { value: "all", label: "All orbitals" },
+        ...ORBITALS.map((o) => ({ value: o, label: o })),
+      ]} onChange={autoSubmit} />
+
+      <FilterSelect label="Rarity" name="rarity" current={value("rarity", "all")} options={[
+        { value: "all", label: "All rarities" },
+        ...RARITIES.map((r) => ({ value: r, label: r })),
+      ]} onChange={autoSubmit} />
+
+      <FilterSelect label="Type" name="cardType" current={value("cardType", "all")} options={[
+        { value: "all", label: "All types" },
+        ...CARD_TYPES.map((t) => ({ value: t, label: t })),
+      ]} onChange={autoSubmit} />
+
+      <FieldGroup label="Treatment">
+        <select
+          name="treatment"
+          defaultValue={treatmentValue}
+          onChange={autoSubmit}
+          className="w-full h-9 px-2 rounded-md border border-border/60 bg-surface-base text-ink-primary text-[12px] focus-visible:outline-none focus-visible:border-gold/60 cursor-pointer"
         >
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Orbitals</SelectItem>
-            {ORBITALS.map((o) => (
-              <SelectItem key={o} value={o}>{o}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          {TREATMENTS.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </FieldGroup>
 
-      <div>
-        <Label className="text-xs mb-1.5">Rarity</Label>
-        <Select
-          value={searchParams.get("rarity") ?? "all"}
-          onValueChange={(v) => updateFilter("rarity", v)}
-        >
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Rarities</SelectItem>
-            {RARITIES.map((r) => (
-              <SelectItem key={r} value={r}>{r}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <button
+        type="submit"
+        className="w-full mt-2 py-2 rounded border border-gold/60 bg-gold-dark/30 text-[10px] uppercase tracking-[0.12em] text-gold-light hover:bg-gold-dark/50 transition-colors"
+      >
+        Apply filters
+      </button>
+      <a
+        href="/browse"
+        className="block text-center w-full py-2 rounded border border-border/60 text-[10px] uppercase tracking-[0.12em] text-ink-secondary hover:text-ink-primary hover:border-gold/60 transition-colors"
+      >
+        Clear filters
+      </a>
+    </form>
+  );
+}
 
-      <div>
-        <Label className="text-xs mb-1.5">Type</Label>
-        <Select
-          value={searchParams.get("cardType") ?? "all"}
-          onValueChange={(v) => updateFilter("cardType", v)}
-        >
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {CARD_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label className="text-xs mb-1.5">Treatment</Label>
-        <Select
-          value={searchParams.get("treatment") ?? "all"}
-          onValueChange={(v) => updateFilter("treatment", v)}
-        >
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Classic Paper</SelectItem>
-            {TREATMENTS.map((t) => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Button variant="outline" size="sm" onClick={clearAll} className="w-full">
-        Clear Filters
-      </Button>
+function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.12em] text-ink-muted mb-1.5">{label}</p>
+      {children}
     </div>
+  );
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+function FilterSelect({
+  label,
+  name,
+  current,
+  options,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  current: string;
+  options: SelectOption[];
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+}) {
+  return (
+    <FieldGroup label={label}>
+      <select
+        name={name}
+        defaultValue={current}
+        onChange={onChange}
+        className="w-full h-9 px-2 rounded-md border border-border/60 bg-surface-base text-ink-primary text-[12px] focus-visible:outline-none focus-visible:border-gold/60 cursor-pointer"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </FieldGroup>
   );
 }

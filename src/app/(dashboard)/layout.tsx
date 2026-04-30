@@ -12,6 +12,8 @@ export default function DashboardLayout({
           <a href="/offers" className="block px-3 py-2 rounded-md hover:bg-muted">Offers</a>
           <a href="/collection" className="block px-3 py-2 rounded-md hover:bg-muted">Collection</a>
           <a href="/buylist" className="block px-3 py-2 rounded-md hover:bg-muted">Buylist</a>
+          <a href="/dragon-scales" className="block px-3 py-2 rounded-md hover:bg-muted">Dragon Scales</a>
+          <a href="/dragon-stable" className="block px-3 py-2 rounded-md hover:bg-muted">Dragon Stable</a>
           <a href="/settings" className="block px-3 py-2 rounded-md hover:bg-muted">Settings</a>
         </nav>
       </aside>
