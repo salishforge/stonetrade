@@ -65,6 +65,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Stonefoil cards are 1/1 — exactly one copy of each exists in the world.
+  // Reject quantity > 1, and pre-check that no other DragonScale row already
+  // claims this Card so we can return a clean 409 instead of leaking the
+  // partial-unique-index P2002 error from Prisma.
+  if (card.treatment === "Stonefoil") {
+    if (input.quantity > 1) {
+      return NextResponse.json(
+        { error: "Stonefoil cards are 1/1 — quantity must be 1" },
+        { status: 400 },
+      );
+    }
+    const existing = await prisma.dragonScale.findFirst({
+      where: { cardId: card.id, treatment: "Stonefoil" },
+      select: { id: true, userId: true },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: "This Stonefoil is already claimed as a Dragon Scale" },
+        { status: 409 },
+      );
+    }
+  }
+
   // Tokens cannot carry bonus variants per PDF — silently coerce to NONE so a
   // forgotten variant in the picker doesn't reject the row.
   const bonusVariant = card.isToken ? "NONE" : input.bonusVariant;
