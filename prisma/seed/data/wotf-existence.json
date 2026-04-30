@@ -12,7 +12,7 @@
     "totalCards": 401
   },
   "cards": [
-    { "cardNumber": "001/401", "name": "Existence The First", "orbital": "Boundless", "rarity": "Mythic", "cardType": "Wonder" },
+    { "cardNumber": "001/401", "name": "Existence The First", "orbital": "Boundless", "rarity": "Mythic", "cardType": "Wonder", "isLoreMythic": true },
     { "cardNumber": "002/401", "name": "Aegis of Petraia", "orbital": "Petraia", "rarity": "Rare", "cardType": "Wonder" },
     { "cardNumber": "003/401", "name": "Solfera Blaze", "orbital": "Solfera", "rarity": "Uncommon", "cardType": "Spell" },
     { "cardNumber": "004/401", "name": "Thalwind Gust", "orbital": "Thalwind", "rarity": "Common", "cardType": "Spell" },
@@ -29,9 +29,9 @@
     { "cardNumber": "015/401", "name": "Cyclone Ward", "orbital": "Thalwind", "rarity": "Rare", "cardType": "Item" },
     { "cardNumber": "016/401", "name": "Dark Mire", "orbital": "Umbrathene", "rarity": "Common", "cardType": "Land" },
     { "cardNumber": "017/401", "name": "Photon Lance", "orbital": "Heliosynth", "rarity": "Uncommon", "cardType": "Item" },
-    { "cardNumber": "018/401", "name": "Eternal Monolith", "orbital": "Boundless", "rarity": "Mythic", "cardType": "Wonder" },
-    { "cardNumber": "019/401", "name": "Granite Guardian", "orbital": "Petraia", "rarity": "Mythic", "cardType": "Wonder" },
-    { "cardNumber": "020/401", "name": "Inferno Titan", "orbital": "Solfera", "rarity": "Mythic", "cardType": "Wonder" },
+    { "cardNumber": "018/401", "name": "Eternal Monolith", "orbital": "Boundless", "rarity": "Mythic", "cardType": "Wonder", "isLoreMythic": true },
+    { "cardNumber": "019/401", "name": "Granite Guardian", "orbital": "Petraia", "rarity": "Mythic", "cardType": "Wonder", "isStoneseeker": true },
+    { "cardNumber": "020/401", "name": "Inferno Titan", "orbital": "Solfera", "rarity": "Mythic", "cardType": "Wonder", "isStoneseeker": true },
     { "cardNumber": "021/401", "name": "Tempest Drake", "orbital": "Thalwind", "rarity": "Mythic", "cardType": "Wonder" },
     { "cardNumber": "022/401", "name": "Void Wraith", "orbital": "Umbrathene", "rarity": "Mythic", "cardType": "Wonder" },
     { "cardNumber": "023/401", "name": "Sunweaver", "orbital": "Heliosynth", "rarity": "Mythic", "cardType": "Wonder" },
@@ -51,6 +51,8 @@
     { "cardNumber": "037/401", "name": "Dusk Phantom", "orbital": "Umbrathene", "rarity": "Uncommon", "cardType": "Wonder" },
     { "cardNumber": "038/401", "name": "Dawn Herald", "orbital": "Heliosynth", "rarity": "Uncommon", "cardType": "Wonder" },
     { "cardNumber": "039/401", "name": "Quake Hammer", "orbital": "Petraia", "rarity": "Uncommon", "cardType": "Item" },
-    { "cardNumber": "040/401", "name": "Blazing Shield", "orbital": "Solfera", "rarity": "Rare", "cardType": "Item" }
+    { "cardNumber": "040/401", "name": "Blazing Shield", "orbital": "Solfera", "rarity": "Rare", "cardType": "Item" },
+    { "cardNumber": "T001/T010", "name": "Stone Token", "orbital": "Petraia", "rarity": "Common", "cardType": "Token", "isToken": true },
+    { "cardNumber": "T002/T010", "name": "Wonder Token", "orbital": "Boundless", "rarity": "Common", "cardType": "Token", "isToken": true }
   ]
 }

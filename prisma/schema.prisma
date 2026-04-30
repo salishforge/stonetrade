@@ -100,6 +100,26 @@ enum RevealPolicy {
   SELLER_REVEALS
 }
 
+// Bonus variants applied to a single physical card; the Dragon scoring engine
+// adds a flat or treatment-keyed bonus on top of the base treatment points.
+// Tokens are not in this enum — token-ness lives on the Card itself.
+enum DragonScaleBonusVariant {
+  NONE
+  AUTOGRAPH
+  ALT_ART
+  ECHO
+  PROMO
+  ART_PROOF_DIGITAL
+  PRE_RELEASE_FOIL
+}
+
+// PACK is reserved for Phase 2 (pooled Hunting Pack dragons). USER is the only
+// owner type wired up in Phase 1.
+enum DragonOwnerType {
+  USER
+  PACK
+}
+
 // =============================================================================
 // Game Registry
 // =============================================================================
@@ -165,6 +185,13 @@ model Card {
   isSerialized Boolean @default(false)
   serialTotal  Int?
 
+  // Dragon Cup metadata. Stoneseekers and Lore Mythics earn 3x the base
+  // treatment points (PDF slide 7 footnote). Tokens use a separate point
+  // table and are not eligible for bonus variants.
+  isStoneseeker Boolean @default(false)
+  isLoreMythic  Boolean @default(false)
+  isToken       Boolean @default(false)
+
   // Media
   imageUrl     String?
   imageUrlBack String?
@@ -191,6 +218,7 @@ model Card {
   engineHistory   CardEngineMetricsHistory[]
   alerts          UserAlert[]
   tradeItems      TradeItem[]
+  dragonScales    DragonScale[]
 
   @@unique([setId, cardNumber, treatment])
   @@index([gameId, name])
@@ -612,6 +640,8 @@ model CollectionCard {
 
   notes String?
 
+  dragonScales DragonScale[]
+
   @@unique([collectionId, cardId, treatment, condition, serialNumber])
 }
 
@@ -660,6 +690,8 @@ model User {
   alerts         UserAlert[]
   proposedTrades Trade[]         @relation("TradeProposer")
   receivedTrades Trade[]         @relation("TradeRecipient")
+  dragonScales   DragonScale[]
+  dragons        DragonRegistration[] @relation("UserDragons")
 }
 
 // =============================================================================
@@ -736,4 +768,69 @@ model TradeItem {
   treatment String
 
   @@index([tradeId])
+}
+
+// =============================================================================
+// Dragon Cup — Phase 1: Dragon Scales + Dragon Stable
+// =============================================================================
+//
+// A Dragon Scale is a per-instance ownership claim against a Card variant
+// (treatment + optional bonus variant + optional serial). Scoring depends on
+// the Card's rarity, its Dragon Cup metadata flags, the scale's treatment +
+// bonusVariant + quantity, and the source Set's release recency. The scoring
+// engine in src/lib/dragon/ is the source of truth; pointsCached is a write-
+// through cache refreshed on every mutation. A Dragon (≥10,000 points) is
+// surfaced via DragonRegistration. The PACK owner type is reserved for
+// Phase 2 and not exercised by Phase 1 code paths.
+
+model DragonScale {
+  id               String   @id @default(cuid())
+  userId           String
+  cardId           String
+  collectionCardId String?
+
+  // Denormalised from Card.treatment so the cached score stays auditable
+  // even if a future migration changes how treatments are represented.
+  treatment    String
+  bonusVariant DragonScaleBonusVariant @default(NONE)
+  quantity     Int                     @default(1)
+  serialNumber String?
+
+  // Write-through cache; recalc is the source of truth.
+  pointsCached       Int       @default(0)
+  pointsCalculatedAt DateTime?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card           Card            @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  collectionCard CollectionCard? @relation(fields: [collectionCardId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userId, pointsCached])
+  @@index([cardId])
+}
+
+model DragonRegistration {
+  id          String          @id @default(cuid())
+  ownerType   DragonOwnerType
+  userOwnerId String?
+  packOwnerId String? // reserved for Phase 2
+
+  // Sum of contributing scale.pointsCached at lastRecalculatedAt.
+  currentPoints      Int
+  formedAt           DateTime  @default(now())
+  dissolvedAt        DateTime?
+  lastRecalculatedAt DateTime  @default(now())
+
+  userOwner User? @relation("UserDragons", fields: [userOwnerId], references: [id], onDelete: Cascade)
+
+  // One personal dragon per user. PACK rows would collide on (PACK, null)
+  // so packOwnerId carries the uniqueness for Phase 2; enforced by an
+  // additional unique constraint when that work lands.
+  @@unique([ownerType, userOwnerId])
+  @@index([currentPoints])
 }

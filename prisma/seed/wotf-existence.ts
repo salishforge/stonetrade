@@ -70,6 +70,15 @@ export async function seedWotfExistence(prisma: PrismaClient) {
         serialTotal = 1;
       }
 
+      const dragonFlags = card as Partial<{
+        isStoneseeker: boolean;
+        isLoreMythic: boolean;
+        isToken: boolean;
+      }>;
+      const isStoneseeker = dragonFlags.isStoneseeker ?? false;
+      const isLoreMythic = dragonFlags.isLoreMythic ?? false;
+      const isToken = dragonFlags.isToken ?? false;
+
       await prisma.card.upsert({
         where: {
           setId_cardNumber_treatment: {
@@ -84,6 +93,9 @@ export async function seedWotfExistence(prisma: PrismaClient) {
           rarity: card.rarity,
           cardType: card.cardType,
           imageUrl: imageUrlFromCardNumber(card.cardNumber),
+          isStoneseeker,
+          isLoreMythic,
+          isToken,
         },
         create: {
           gameId: game.id,
@@ -96,6 +108,9 @@ export async function seedWotfExistence(prisma: PrismaClient) {
           treatment: treatment.name,
           isSerialized,
           serialTotal,
+          isStoneseeker,
+          isLoreMythic,
+          isToken,
           imageUrl: imageUrlFromCardNumber(card.cardNumber),
         },
       });
