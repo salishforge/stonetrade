@@ -4,6 +4,19 @@ import { requireUser } from "@/lib/auth";
 import { createDragonScaleSchema } from "@/lib/validators/dragon";
 import { recalculateForUserAndPacks } from "@/lib/dragon/recalculate";
 import { isScoringTreatment } from "@/lib/dragon/constants";
+import { OCM_SERIAL_LIMITS } from "@/types/platform";
+
+// Parse a serial like "5/10" or "5" into { numerator, denominator? }. Returns
+// null when the string doesn't look like a serial. Lenient on whitespace +
+// leading zeroes; strict on negative or non-integer values.
+function parseSerialNumber(s: string): { numerator: number; denominator?: number } | null {
+  const m = s.trim().match(/^(\d+)(?:\s*\/\s*(\d+))?$/);
+  if (!m) return null;
+  const numerator = parseInt(m[1], 10);
+  if (!Number.isFinite(numerator) || numerator <= 0) return null;
+  const denom = m[2] ? parseInt(m[2], 10) : undefined;
+  return { numerator, denominator: denom };
+}
 
 export async function GET() {
   const user = await requireUser();
@@ -50,7 +63,14 @@ export async function POST(request: NextRequest) {
 
   const card = await prisma.card.findUnique({
     where: { id: input.cardId },
-    select: { id: true, treatment: true, isToken: true },
+    select: {
+      id: true,
+      treatment: true,
+      rarity: true,
+      isToken: true,
+      isSerialized: true,
+      serialTotal: true,
+    },
   });
   if (!card) {
     return NextResponse.json({ error: "Card not found" }, { status: 404 });
@@ -88,6 +108,51 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // OCM cards are serialised at per-rarity print runs. The serial number
+  // identifies the specific physical card; we require it on creation so
+  // the registry can show "5/10" slot-by-slot, and reject claims that
+  // collide with an existing serial.
+  if (card.treatment === "OCM") {
+    if (input.quantity > 1) {
+      return NextResponse.json(
+        { error: "OCM serial numbers identify a single card — quantity must be 1" },
+        { status: 400 },
+      );
+    }
+    if (!input.serialNumber) {
+      return NextResponse.json(
+        { error: "OCM scales require a serial number (e.g. '5/10')" },
+        { status: 400 },
+      );
+    }
+    // Print-run cap: prefer the per-card serialTotal when populated, fall
+    // back to the rarity-based limit map. A handful of platform-synced OCM
+    // rows have serialTotal=null even though their rarity is a known one;
+    // without the fallback the bounds check would silently pass.
+    const cap = card.serialTotal ?? OCM_SERIAL_LIMITS[card.rarity] ?? null;
+    if (cap != null) {
+      const parsed = parseSerialNumber(input.serialNumber);
+      if (!parsed || parsed.numerator < 1 || parsed.numerator > cap) {
+        return NextResponse.json(
+          {
+            error: `Serial must be in 1..${cap} for this OCM (got "${input.serialNumber}")`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+    const existing = await prisma.dragonScale.findFirst({
+      where: { cardId: card.id, treatment: "OCM", serialNumber: input.serialNumber },
+      select: { id: true },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { error: `OCM serial ${input.serialNumber} of this card is already claimed` },
+        { status: 409 },
+      );
+    }
+  }
+
   // Tokens cannot carry bonus variants per PDF — silently coerce to NONE so a
   // forgotten variant in the picker doesn't reject the row.
   const bonusVariant = card.isToken ? "NONE" : input.bonusVariant;
@@ -111,9 +176,13 @@ export async function POST(request: NextRequest) {
       treatment: card.treatment,
       bonusVariant,
       quantity: input.quantity,
-      serialNumber: input.serialNumber ?? null,
+      // Stonefoil 1/1 doesn't need a serial; OCM requires one (already
+      // validated above). Other treatments accept whatever the user types.
+      serialNumber:
+        card.treatment === "Stonefoil" ? null : input.serialNumber ?? null,
       collectionCardId: input.collectionCardId ?? null,
       notes: input.notes ?? null,
+      visibility: input.visibility,
     },
   });
 

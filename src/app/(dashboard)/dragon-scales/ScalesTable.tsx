@@ -15,6 +15,7 @@ type Scale = {
   quantity: number;
   pointsCached: number;
   serialNumber: string | null;
+  visibility: "PRIVATE" | "PUBLIC_NAMED" | "PUBLIC_ANONYMOUS";
   card: {
     id: string;
     name: string;
@@ -25,6 +26,12 @@ type Scale = {
     isToken: boolean;
     set: { code: string; name: string };
   };
+};
+
+const VISIBILITY_LABEL: Record<Scale["visibility"], string> = {
+  PRIVATE: "Private",
+  PUBLIC_NAMED: "Public (named)",
+  PUBLIC_ANONYMOUS: "Public (anonymous)",
 };
 
 export function ScalesTable({ initialScales }: { initialScales: Scale[] }) {
@@ -43,6 +50,25 @@ export function ScalesTable({ initialScales }: { initialScales: Scale[] }) {
         return;
       }
       // Server-rendered totals + the registration card refresh together.
+      startTransition(() => router.refresh());
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function setVisibility(id: string, visibility: Scale["visibility"]) {
+    setBusyId(id);
+    try {
+      const res = await fetch(`/api/dragon-scales/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(body.error ?? "Failed to update visibility");
+        return;
+      }
       startTransition(() => router.refresh());
     } finally {
       setBusyId(null);
@@ -72,6 +98,7 @@ export function ScalesTable({ initialScales }: { initialScales: Scale[] }) {
             <th className="text-left px-4 py-2 font-medium">Bonus</th>
             <th className="text-right px-4 py-2 font-medium">Qty</th>
             <th className="text-right px-4 py-2 font-medium">Points</th>
+            <th className="text-left px-4 py-2 font-medium">Registry</th>
             <th className="px-4 py-2"></th>
           </tr>
         </thead>
@@ -104,6 +131,29 @@ export function ScalesTable({ initialScales }: { initialScales: Scale[] }) {
               <td className="px-4 py-3 text-right">{s.quantity}</td>
               <td className="px-4 py-3 text-right font-medium">
                 {s.pointsCached.toLocaleString()}
+              </td>
+              <td className="px-4 py-3">
+                {/* Stonefoils + OCMs are the registry-eligible cards. Other
+                    treatments stay private — there's no registry for them. */}
+                {s.treatment === "Stonefoil" || s.treatment === "OCM" ? (
+                  <select
+                    className="h-7 rounded-md border bg-transparent px-1.5 text-xs"
+                    value={s.visibility}
+                    disabled={pending || busyId === s.id}
+                    onChange={(e) =>
+                      setVisibility(s.id, e.target.value as Scale["visibility"])
+                    }
+                    aria-label="Registry visibility"
+                  >
+                    <option value="PRIVATE">Private</option>
+                    <option value="PUBLIC_NAMED">Public (named)</option>
+                    <option value="PUBLIC_ANONYMOUS">Public (anonymous)</option>
+                  </select>
+                ) : (
+                  <span className="text-xs text-muted-foreground" title="Only Stonefoil + OCM cards appear in the public registry">
+                    {VISIBILITY_LABEL[s.visibility]}
+                  </span>
+                )}
               </td>
               <td className="px-4 py-3 text-right">
                 <Button

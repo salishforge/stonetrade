@@ -46,6 +46,7 @@ export async function PATCH(
       quantity: input.quantity ?? undefined,
       serialNumber: input.serialNumber === undefined ? undefined : input.serialNumber,
       notes: input.notes === undefined ? undefined : input.notes,
+      visibility: input.visibility ?? undefined,
     },
   });
 

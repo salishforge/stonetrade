@@ -119,6 +119,16 @@ enum DragonOwnerType {
   PACK
 }
 
+// Per-scale visibility for the public Stonefoil + OCM registry. Defaults
+// to PRIVATE so opting in is explicit. PUBLIC_NAMED shows the owner's
+// username; PUBLIC_ANONYMOUS shows "Anonymous Hunter" but still counts
+// the slot as claimed.
+enum RegistryVisibility {
+  PRIVATE
+  PUBLIC_NAMED
+  PUBLIC_ANONYMOUS
+}
+
 // =============================================================================
 // Dragon Cup Phase 2 — Hunting Packs + Contracts
 // =============================================================================
@@ -901,6 +911,11 @@ model DragonScale {
   // Write-through cache; recalc is the source of truth.
   pointsCached       Int       @default(0)
   pointsCalculatedAt DateTime?
+
+  // Public registry visibility. Drives the /registry page; Dragon Cup
+  // scoring is unaffected (private scales still earn points for the
+  // owner — only the outward display changes).
+  visibility RegistryVisibility @default(PRIVATE)
 
   notes String?
 
