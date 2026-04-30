@@ -15,6 +15,8 @@ import { listingSoldWorkflow } from "./listing-sold";
 import { offerReceivedWorkflow } from "./offer-received";
 import { bountyHitWorkflow } from "./bounty-hit";
 import { outbidWorkflow } from "./outbid";
+import { packInviteReceivedWorkflow } from "./pack-invite-received";
+import { contractSignatureRequiredWorkflow } from "./contract-signature-required";
 
 export const workflows = [
   orderPaidWorkflow,
@@ -22,4 +24,6 @@ export const workflows = [
   offerReceivedWorkflow,
   bountyHitWorkflow,
   outbidWorkflow,
+  packInviteReceivedWorkflow,
+  contractSignatureRequiredWorkflow,
 ];

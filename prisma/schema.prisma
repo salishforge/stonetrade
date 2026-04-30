@@ -113,11 +113,82 @@ enum DragonScaleBonusVariant {
   PRE_RELEASE_FOIL
 }
 
-// PACK is reserved for Phase 2 (pooled Hunting Pack dragons). USER is the only
-// owner type wired up in Phase 1.
+// PACK ownerType activates in Phase 2 with HuntingPack-pooled scoring.
 enum DragonOwnerType {
   USER
   PACK
+}
+
+// =============================================================================
+// Dragon Cup Phase 2 — Hunting Packs + Contracts
+// =============================================================================
+
+enum HuntingPackStatus {
+  ACTIVE
+  DISBANDED
+}
+
+enum PackMemberRole {
+  FOUNDER
+  MEMBER
+}
+
+enum PackInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REVOKED
+}
+
+// Lifecycle:
+//   DRAFT            → editing; no signatures collected yet
+//   PENDING_APPROVAL → version published; collecting signatures from all parties
+//   RATIFIED         → all required signatures collected; current version is in force
+//   SUPERSEDED       → a newer version has been ratified
+enum ContractStatus {
+  DRAFT
+  PENDING_APPROVAL
+  RATIFIED
+  SUPERSEDED
+}
+
+// Determines how prize money is split among pack members. MANUAL keeps the
+// allocation as a free-form list inside bodyJson; PROPORTIONAL_BY_SCALES
+// distributes by each member's contribution to the pack Dragon strength,
+// after the rider payment has been deducted.
+enum ContractPayoutMode {
+  MANUAL
+  PROPORTIONAL_BY_SCALES
+}
+
+enum RiderPaymentMode {
+  FIXED_AMOUNT
+  PERCENT
+}
+
+enum ContractSignatoryRole {
+  PACK_MEMBER
+  DRAGON_RIDER
+}
+
+// Append-only audit-log actions. Treat the enum as a soft contract — adding
+// a value is fine; removing one would break historical reads.
+enum ContractAuditAction {
+  PACK_CREATED
+  CONTRACT_DRAFTED
+  VERSION_PROPOSED
+  SIGNED
+  DECLINED
+  RATIFIED
+  SUPERSEDED
+  RIDER_APPOINTED
+  RIDER_CHANGED
+  MEMBER_JOINED
+  MEMBER_LEFT
+  INVITATION_SENT
+  INVITATION_ACCEPTED
+  INVITATION_DECLINED
 }
 
 // =============================================================================
@@ -692,6 +763,16 @@ model User {
   receivedTrades Trade[]         @relation("TradeRecipient")
   dragonScales   DragonScale[]
   dragons        DragonRegistration[] @relation("UserDragons")
+  ridingDragons  DragonRegistration[] @relation("DragonRider")
+
+  packsFounded            HuntingPack[]        @relation("PackFounder")
+  packMemberships         HuntingPackMember[]
+  packInvitationsSent     PackInvitation[]     @relation("PackInvitationsSent")
+  packInvitationsReceived PackInvitation[]     @relation("PackInvitationsReceived")
+  contractsCreated        ContractVersion[]    @relation("ContractCreator")
+  contractsAsRider        ContractVersion[]    @relation("ContractRider")
+  contractSignatories     ContractSignatory[]
+  contractAuditEntries    ContractAuditLog[]   @relation("ContractAuditActor")
 }
 
 // =============================================================================
@@ -818,7 +899,7 @@ model DragonRegistration {
   id          String          @id @default(cuid())
   ownerType   DragonOwnerType
   userOwnerId String?
-  packOwnerId String? // reserved for Phase 2
+  packOwnerId String?
 
   // Sum of contributing scale.pointsCached at lastRecalculatedAt.
   currentPoints      Int
@@ -826,11 +907,186 @@ model DragonRegistration {
   dissolvedAt        DateTime?
   lastRecalculatedAt DateTime  @default(now())
 
-  userOwner User? @relation("UserDragons", fields: [userOwnerId], references: [id], onDelete: Cascade)
+  // Appointed Stoneseeker who will compete on behalf of this Dragon. May be
+  // null until appointment; for pack Dragons, the rider must also be named
+  // in the pack's ratified contract before tournament eligibility (Phase 3
+  // enforces at registration time, not at appointment time).
+  dragonRiderUserId String?
+  dragonRider       User? @relation("DragonRider", fields: [dragonRiderUserId], references: [id], onDelete: SetNull)
 
-  // One personal dragon per user. PACK rows would collide on (PACK, null)
-  // so packOwnerId carries the uniqueness for Phase 2; enforced by an
-  // additional unique constraint when that work lands.
+  userOwner User?        @relation("UserDragons", fields: [userOwnerId], references: [id], onDelete: Cascade)
+  packOwner HuntingPack? @relation("PackDragons", fields: [packOwnerId], references: [id], onDelete: Cascade)
+
+  // Postgres treats NULL as distinct in unique indexes pre-15, so the two
+  // unique constraints are effectively partial: one enforces uniqueness for
+  // USER rows, the other for PACK rows.
   @@unique([ownerType, userOwnerId])
+  @@unique([ownerType, packOwnerId])
   @@index([currentPoints])
+  @@index([dragonRiderUserId])
+}
+
+// =============================================================================
+// Hunting Packs (Phase 2)
+// =============================================================================
+
+model HuntingPack {
+  id        String            @id @default(cuid())
+  name      String
+  slug      String            @unique
+  founderId String
+  status    HuntingPackStatus @default(ACTIVE)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  founder       User                 @relation("PackFounder", fields: [founderId], references: [id])
+  members       HuntingPackMember[]
+  invitations   PackInvitation[]
+  contract      PackContract?
+  registrations DragonRegistration[] @relation("PackDragons")
+
+  @@index([founderId])
+  @@index([status])
+}
+
+// One row per (user × join event). Soft-deleted by setting leftAt — the row
+// is preserved for audit so a member's earlier scale contributions can still
+// be reasoned about when reading old contracts.
+model HuntingPackMember {
+  id       String         @id @default(cuid())
+  packId   String
+  userId   String
+  role     PackMemberRole @default(MEMBER)
+  joinedAt DateTime       @default(now())
+  leftAt   DateTime?
+
+  pack HuntingPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id])
+
+  @@index([packId, leftAt])
+  @@index([userId, leftAt])
+}
+
+// Token-based invitation. inviteeEmail is required; inviteeUserId is set
+// when we can resolve the email to an existing User at create time so that
+// the invitee can see the invitation in their dashboard without clicking a
+// link from an email. Both routes (token URL, dashboard panel) end up at
+// the same accept/decline endpoints.
+model PackInvitation {
+  id             String               @id @default(cuid())
+  packId         String
+  inviterUserId  String
+  inviteeEmail   String
+  inviteeUserId  String?
+  token          String               @unique
+  status         PackInvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime             @default(now())
+  respondedAt    DateTime?
+
+  pack    HuntingPack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  inviter User        @relation("PackInvitationsSent", fields: [inviterUserId], references: [id])
+  invitee User?       @relation("PackInvitationsReceived", fields: [inviteeUserId], references: [id])
+
+  @@index([packId, status])
+  @@index([inviteeEmail, status])
+  @@index([inviteeUserId, status])
+}
+
+// =============================================================================
+// Pack Contracts (Phase 2)
+// =============================================================================
+//
+// A PackContract is a 1-1 with HuntingPack. Versions are immutable — every
+// edit creates a new ContractVersion and reopens signature collection. The
+// canonical body lives in bodyJson; bodyHash (SHA-256 of canonicalised JSON)
+// is what each ContractSignature records, so any post-signature edit is
+// detectable. The contract's `currentVersionId` always points at the most
+// recent version (regardless of ratification state); the previously
+// ratified version is identifiable via its non-null ratifiedAt.
+
+model PackContract {
+  id               String         @id @default(cuid())
+  packId           String         @unique
+  status           ContractStatus @default(DRAFT)
+  currentVersionId String?        @unique
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  pack           HuntingPack       @relation(fields: [packId], references: [id], onDelete: Cascade)
+  currentVersion ContractVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  versions       ContractVersion[] @relation("AllVersions")
+  auditLog       ContractAuditLog[]
+}
+
+model ContractVersion {
+  id                String             @id @default(cuid())
+  contractId        String
+  versionNumber     Int
+  bodyJson          Json
+  bodyHash          String
+  payoutMode        ContractPayoutMode
+  riderPaymentMode  RiderPaymentMode
+  riderPaymentValue Decimal            @db.Decimal(12, 2)
+  dragonRiderUserId String?
+  createdByUserId   String
+  createdAt         DateTime           @default(now())
+  ratifiedAt        DateTime?
+
+  contract           PackContract        @relation("AllVersions", fields: [contractId], references: [id], onDelete: Cascade)
+  currentForContract PackContract?       @relation("CurrentVersion")
+  dragonRider        User?               @relation("ContractRider", fields: [dragonRiderUserId], references: [id])
+  createdBy          User                @relation("ContractCreator", fields: [createdByUserId], references: [id])
+  signatories        ContractSignatory[]
+  signatures         ContractSignature[]
+  auditLog           ContractAuditLog[]
+
+  @@unique([contractId, versionNumber])
+}
+
+// Named parties on a specific version. A user may appear twice when they
+// hold two roles (e.g. both PACK_MEMBER and DRAGON_RIDER); each row needs
+// its own signature. requiredForRatification is always true today but kept
+// as a flag so future versions can model observers / cosigners.
+model ContractSignatory {
+  id                      String                @id @default(cuid())
+  versionId               String
+  userId                  String
+  role                    ContractSignatoryRole
+  requiredForRatification Boolean               @default(true)
+
+  version   ContractVersion    @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  user      User               @relation(fields: [userId], references: [id])
+  signature ContractSignature?
+
+  @@unique([versionId, userId, role])
+}
+
+model ContractSignature {
+  id             String   @id @default(cuid())
+  versionId      String
+  signatoryId    String   @unique
+  signedAt       DateTime @default(now())
+  signedBodyHash String
+  ipAddress      String?
+  userAgent      String?
+
+  version   ContractVersion   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  signatory ContractSignatory @relation(fields: [signatoryId], references: [id])
+}
+
+model ContractAuditLog {
+  id          String              @id @default(cuid())
+  contractId  String
+  versionId   String?
+  actorUserId String?
+  action      ContractAuditAction
+  payloadJson Json?
+  createdAt   DateTime            @default(now())
+
+  contract PackContract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  version  ContractVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  actor    User?            @relation("ContractAuditActor", fields: [actorUserId], references: [id])
+
+  @@index([contractId, createdAt])
 }

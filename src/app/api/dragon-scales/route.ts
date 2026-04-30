@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { createDragonScaleSchema } from "@/lib/validators/dragon";
-import { recalculateUserDragon } from "@/lib/dragon/recalculate";
+import { recalculateForUserAndPacks } from "@/lib/dragon/recalculate";
 import { isScoringTreatment } from "@/lib/dragon/constants";
 
 export async function GET() {
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  await recalculateUserDragon(user.id);
+  await recalculateForUserAndPacks(user.id);
 
   // Re-fetch with the include shape the GET uses, so the client gets a
   // consistent response and the freshly computed pointsCached.

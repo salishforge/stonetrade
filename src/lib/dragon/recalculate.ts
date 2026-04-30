@@ -115,8 +115,8 @@ export async function recalculateUserDragon(userId: string) {
 
 /**
  * Convenience wrapper for API routes mutating a single scale: locates the
- * scale's owner and recalculates them. Returns the same shape as
- * `recalculateUserDragon`.
+ * scale's owner and recalculates them, plus every pack they belong to (a
+ * member's scale change shifts the pack's pooled total).
  */
 export async function recalculateScale(scaleId: string) {
   const scale = await prisma.dragonScale.findUnique({
@@ -124,5 +124,99 @@ export async function recalculateScale(scaleId: string) {
     select: { userId: true },
   });
   if (!scale) return null;
-  return recalculateUserDragon(scale.userId);
+  return recalculateForUserAndPacks(scale.userId);
+}
+
+/**
+ * Recompute the user's personal Dragon AND every pack Dragon the user is
+ * currently a member of. Returns the personal registration; pack results
+ * fan out as side effects since callers don't usually care about them
+ * individually after a single-user mutation.
+ */
+export async function recalculateForUserAndPacks(userId: string) {
+  const personal = await recalculateUserDragon(userId);
+  const memberships = await prisma.huntingPackMember.findMany({
+    where: { userId, leftAt: null },
+    select: { packId: true },
+  });
+  for (const m of memberships) {
+    await recalculatePackDragon(m.packId);
+  }
+  return personal;
+}
+
+/**
+ * Pack Dragon strength = sum of pointsCached across DragonScale rows owned
+ * by every current member (leftAt = null). Members keep individual scale
+ * ownership; the pack just pools their cached scores. Disbanded packs are
+ * skipped — their registration stays as-is for history.
+ */
+export async function recalculatePackDragon(packId: string) {
+  const pack = await prisma.huntingPack.findUnique({
+    where: { id: packId },
+    select: { id: true, status: true },
+  });
+  if (!pack) return null;
+  if (pack.status === "DISBANDED") return null;
+
+  const members = await prisma.huntingPackMember.findMany({
+    where: { packId, leftAt: null },
+    select: { userId: true },
+  });
+
+  const memberIds = members.map((m) => m.userId);
+
+  const totalPoints = memberIds.length
+    ? (
+        await prisma.dragonScale.aggregate({
+          where: { userId: { in: memberIds } },
+          _sum: { pointsCached: true },
+        })
+      )._sum.pointsCached ?? 0
+    : 0;
+
+  const now = new Date();
+  const existing = await prisma.dragonRegistration.findUnique({
+    where: { ownerType_packOwnerId: { ownerType: "PACK", packOwnerId: packId } },
+  });
+
+  if (totalPoints >= DRAGON_POINT_THRESHOLD) {
+    if (existing) {
+      return prisma.dragonRegistration.update({
+        where: { id: existing.id },
+        data: {
+          currentPoints: totalPoints,
+          dissolvedAt: null,
+          lastRecalculatedAt: now,
+        },
+      });
+    }
+    return prisma.dragonRegistration.create({
+      data: {
+        ownerType: "PACK",
+        packOwnerId: packId,
+        currentPoints: totalPoints,
+        formedAt: now,
+        lastRecalculatedAt: now,
+      },
+    });
+  }
+
+  if (existing && existing.dissolvedAt == null) {
+    return prisma.dragonRegistration.update({
+      where: { id: existing.id },
+      data: {
+        currentPoints: totalPoints,
+        dissolvedAt: now,
+        lastRecalculatedAt: now,
+      },
+    });
+  }
+  if (existing) {
+    return prisma.dragonRegistration.update({
+      where: { id: existing.id },
+      data: { currentPoints: totalPoints, lastRecalculatedAt: now },
+    });
+  }
+  return null;
 }
