@@ -99,6 +99,7 @@ export async function syncFromPlatform() {
           flavorText: variant.flavorText,
           imageUrl: variant.imageUrl,
           isLoreMythic: variant.isLoreMythic,
+          isStoneseeker: variant.isStoneseeker,
         },
         create: variant,
       });

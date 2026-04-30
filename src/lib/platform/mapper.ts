@@ -15,6 +15,7 @@ interface MarketplaceCardInput {
   isSerialized: boolean;
   serialTotal: number | null;
   isLoreMythic: boolean;
+  isStoneseeker: boolean;
   rulesText: string | null;
   flavorText: string | null;
   imageUrl: string | null;
@@ -86,6 +87,10 @@ export function mapPlatformCardToMarketplace(
   }
 
   const isLoreMythic = isLoreMythicCard(setCode, card.name);
+  // Stoneseeker is canonical platform metadata; default to false when the
+  // upstream payload omits the field (older platform versions, or non-WoTF
+  // games whose payload shape doesn't carry it).
+  const isStoneseeker = card.is_stoneseeker === true;
 
   return WOTF_TREATMENTS.map((treatment) => {
     let isSerialized = false;
@@ -114,6 +119,7 @@ export function mapPlatformCardToMarketplace(
       isSerialized,
       serialTotal,
       isLoreMythic,
+      isStoneseeker,
       rulesText,
       // The platform's `image_url` column is unpopulated; images live on the
       // frontend container's filesystem. Fall back to the platform-derived URL

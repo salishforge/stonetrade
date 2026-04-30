@@ -24,6 +24,14 @@ export interface PlatformCardData {
   is_core: boolean;
   is_equipment: boolean;
   is_token: boolean;
+  // Dragon Cup collector framework — Stoneseekers earn the 3x multiplier on
+  // base treatment points (PDF slide 7 footnote). Maintained on the platform
+  // side because Stoneseeker designation is gameplay-canonical (the cards are
+  // tied to player-character lore that lives with the rest of the catalog),
+  // unlike Lore Mythics which are a per-set editorial pick maintained as a
+  // small in-repo manifest. Optional during the rollout window so payloads
+  // from older platform builds still parse.
+  is_stoneseeker?: boolean;
   // Optional fields the Card DB API exposes; not always populated server-side
   image_url?: string | null;
   flavor_text?: string | null;
