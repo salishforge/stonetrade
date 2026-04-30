@@ -46,8 +46,10 @@ export async function syncFromPlatform() {
   });
 
   // Ensure each known set exists. Cache by code so we can look up by
-  // platform set_name during the loop.
+  // platform set_name during the loop, and so the mapper can be told the
+  // set code for Dragon Cup lore-mythic resolution.
   const setIdByName = new Map<string, string>();
+  const setCodeById = new Map<string, string>();
   for (const meta of Object.values(WOTF_SETS)) {
     const set = await prisma.set.upsert({
       where: { gameId_code: { gameId: game.id, code: meta.code } },
@@ -60,6 +62,7 @@ export async function syncFromPlatform() {
       },
     });
     setIdByName.set(meta.name, set.id);
+    setCodeById.set(set.id, set.code);
   }
 
   let synced = 0;
@@ -73,8 +76,9 @@ export async function syncFromPlatform() {
       if (platformSetName) unknownSets.add(platformSetName);
       setId = setIdByName.get(DEFAULT_WOTF_SET.name)!;
     }
+    const setCode = setCodeById.get(setId) ?? "";
 
-    const variants = mapPlatformCardToMarketplace(platformCard, game.id, setId);
+    const variants = mapPlatformCardToMarketplace(platformCard, game.id, setId, setCode);
 
     for (const variant of variants) {
       await prisma.card.upsert({
@@ -94,6 +98,7 @@ export async function syncFromPlatform() {
           rulesText: variant.rulesText,
           flavorText: variant.flavorText,
           imageUrl: variant.imageUrl,
+          isLoreMythic: variant.isLoreMythic,
         },
         create: variant,
       });

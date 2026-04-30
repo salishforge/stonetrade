@@ -1,5 +1,6 @@
 import type { PlatformCardData } from "@/types/platform";
 import { WOTF_TREATMENTS, OCM_SERIAL_LIMITS } from "@/types/platform";
+import { isLoreMythicCard } from "@/lib/dragon/lore-cards";
 
 interface MarketplaceCardInput {
   gameId: string;
@@ -13,6 +14,7 @@ interface MarketplaceCardInput {
   buildPoints: number | null;
   isSerialized: boolean;
   serialTotal: number | null;
+  isLoreMythic: boolean;
   rulesText: string | null;
   flavorText: string | null;
   imageUrl: string | null;
@@ -65,12 +67,15 @@ function imageUrlFromCardNumber(cardNumber: string): string {
 
 /**
  * Map a single platform CardData to multiple marketplace Card inputs,
- * one per treatment variant.
+ * one per treatment variant. setCode is required so the Dragon Cup
+ * lore-mythic manifest can be consulted: a (setCode, name) hit flips
+ * isLoreMythic on every treatment row.
  */
 export function mapPlatformCardToMarketplace(
   card: PlatformCardData,
   gameId: string,
   setId: string,
+  setCode: string,
 ): MarketplaceCardInput[] {
   const rarity = normalizeRarity(card.rarity);
   const rulesText = abilitiesToRulesText(card.abilities);
@@ -79,6 +84,8 @@ export function mapPlatformCardToMarketplace(
   if (card.is_token || card.rarity === "T") {
     return [];
   }
+
+  const isLoreMythic = isLoreMythicCard(setCode, card.name);
 
   return WOTF_TREATMENTS.map((treatment) => {
     let isSerialized = false;
@@ -106,6 +113,7 @@ export function mapPlatformCardToMarketplace(
       buildPoints: card.dbs_score,
       isSerialized,
       serialTotal,
+      isLoreMythic,
       rulesText,
       // The platform's `image_url` column is unpopulated; images live on the
       // frontend container's filesystem. Fall back to the platform-derived URL
