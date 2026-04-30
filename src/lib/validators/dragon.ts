@@ -10,6 +10,12 @@ export const dragonScaleBonusVariantValues = [
   "PRE_RELEASE_FOIL",
 ] as const;
 
+export const registryVisibilityValues = [
+  "PRIVATE",
+  "PUBLIC_NAMED",
+  "PUBLIC_ANONYMOUS",
+] as const;
+
 // Treatment is derived from Card.treatment server-side, since each treatment
 // of a card is its own Card row (uniqueness is on (setId, cardNumber,
 // treatment)). The client picks a specific Card.id that already encodes the
@@ -21,6 +27,7 @@ export const createDragonScaleSchema = z.object({
   serialNumber: z.string().min(1).max(64).nullable().optional(),
   collectionCardId: z.string().nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
+  visibility: z.enum(registryVisibilityValues).default("PRIVATE"),
 });
 
 export const updateDragonScaleSchema = z.object({
@@ -28,6 +35,7 @@ export const updateDragonScaleSchema = z.object({
   quantity: z.number().int().min(1).max(999).optional(),
   serialNumber: z.string().min(1).max(64).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
+  visibility: z.enum(registryVisibilityValues).optional(),
 });
 
 // Preview a hypothetical scale before persisting it. Same shape as create

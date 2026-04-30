@@ -94,6 +94,8 @@ export default async function RootLayout({
                 <Link href="/prices" className="hover:text-ink-primary transition-colors">Prices</Link>
                 <Link href="/trending" className="hover:text-ink-primary transition-colors">Trending</Link>
                 <Link href="/polls" className="hover:text-ink-primary transition-colors">Polls</Link>
+                <Link href="/registry" className="hover:text-ink-primary transition-colors">Registry</Link>
+                <Link href="/tournaments" className="hover:text-ink-primary transition-colors">Cup</Link>
                 <Link href="/create-listing" className="hover:text-ink-primary transition-colors">Sell</Link>
               </nav>
             </div>
@@ -123,6 +125,8 @@ export default async function RootLayout({
               <Link href="/browse" className="hover:text-ink-primary whitespace-nowrap">Browse</Link>
               <Link href="/prices" className="hover:text-ink-primary whitespace-nowrap">Prices</Link>
               <Link href="/trending" className="hover:text-ink-primary whitespace-nowrap">Trending</Link>
+              <Link href="/registry" className="hover:text-ink-primary whitespace-nowrap">Registry</Link>
+              <Link href="/tournaments" className="hover:text-ink-primary whitespace-nowrap">Cup</Link>
               <Link href="/create-listing" className="hover:text-ink-primary whitespace-nowrap">Sell</Link>
               <Link href="/collection" className="hover:text-ink-primary whitespace-nowrap">Collection</Link>
               <Link href="/listings" className="hover:text-ink-primary whitespace-nowrap">Dashboard</Link>
