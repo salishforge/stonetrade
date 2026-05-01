@@ -37,7 +37,7 @@ export async function POST(
   const query = `${card.name} ${card.set.code}`;
   let items;
   try {
-    items = await searchSoldItems(query, 25);
+    items = await searchSoldItems(query, { limit: 25 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
     return NextResponse.json(
@@ -46,7 +46,21 @@ export async function POST(
     );
   }
 
-  const rows = mapEbayItemsToPriceDataPoints(cardId, items);
+  // Adapter: client's EbayItem uses `date`, ingest helper expects `soldDate`.
+  const rows = mapEbayItemsToPriceDataPoints(
+    cardId,
+    items
+      .filter((i) => i.date != null)
+      .map((i) => ({
+        itemId: i.itemId,
+        title: i.title,
+        price: i.price,
+        currency: i.currency,
+        soldDate: i.date!,
+        imageUrl: i.imageUrl,
+        itemUrl: i.itemUrl,
+      })),
+  );
 
   // No unique constraint on ebayListingId in schema; skipDuplicates not applicable here.
   await prisma.priceDataPoint.createMany({ data: rows });

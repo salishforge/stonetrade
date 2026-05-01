@@ -53,9 +53,10 @@ The practical implication: **the marketplace cannot wait for transaction volume*
 | Listings, Mystery Packs, Offers, Orders | Schema present | `prisma/schema.prisma` |
 | Platform sync (cards) | Implemented | `src/lib/platform/{client,mapper,sync}.ts` |
 | API routes | Scaffolded for cards, listings, polls, prices, offers, orders, collections, buylists, stripe, admin | `src/app/api/` |
-| eBay integration | Scaffolding folder only | `src/lib/ebay/` |
+| eBay integration | OAuth client + Browse / Marketplace Insights wrappers + sync pipeline + admin route | `src/lib/ebay/`, `src/app/api/admin/ebay-sync/` |
 | Carde.io integration | Scaffolding folder only | `src/lib/cardeio/` |
-| AI features | Scaffolding folder only | `src/lib/ai/` |
+| AI price estimator | Implemented (`estimateCardPrice` persists `AI_ESTIMATE` data points) | `src/lib/ai/price-estimator.ts` |
+| Confidence/Price/Chart UI | Implemented | `src/components/pricing/` |
 
 ---
 

@@ -5,6 +5,9 @@ export const PRICE_WEIGHTS: Record<string, number> = {
   SELLER_LISTING: 0.15,
   COMMUNITY_POLL: 0.10,
   EBAY_SOLD: 0.10,
+  // eBay active listings are asking prices, not transactions — they
+  // anchor the high end without overpowering real sales data.
+  EBAY_LISTED: 0.05,
   MANUAL_REPORT: 0.05,
 };
 
