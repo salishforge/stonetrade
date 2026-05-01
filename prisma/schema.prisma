@@ -221,6 +221,16 @@ enum TournamentRegistrationStatus {
   COMPLETED
 }
 
+// Side-category awards (PDF slide 16). TOP_DRAGON = single winner, most
+// declared points entered. TOP_10 = top 10 by declared points. OSPREY =
+// "Most Points Per Set" — top 3 by per-set scale-points contribution
+// within each set the event covers.
+enum TrialKind {
+  TOP_DRAGON
+  TOP_10
+  OSPREY
+}
+
 // =============================================================================
 // Game Registry
 // =============================================================================
@@ -1152,6 +1162,7 @@ model TournamentEvent {
   updatedAt      DateTime              @updatedAt
 
   registrations TournamentRegistration[]
+  trialAwards   TrialAward[]
 
   @@index([eventDate])
   @@index([status])
@@ -1173,10 +1184,11 @@ model TournamentRegistration {
   createdAt            DateTime                     @default(now())
   withdrawnAt          DateTime?
 
-  event  TournamentEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  dragon DragonRegistration @relation(fields: [dragonRegistrationId], references: [id], onDelete: Restrict)
-  rider  User               @relation("RiderRegistrations", fields: [dragonRiderUserId], references: [id])
-  result TournamentResult?
+  event       TournamentEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  dragon      DragonRegistration @relation(fields: [dragonRegistrationId], references: [id], onDelete: Restrict)
+  rider       User               @relation("RiderRegistrations", fields: [dragonRiderUserId], references: [id])
+  result      TournamentResult?
+  trialAwards TrialAward[]
 
   @@unique([eventId, dragonRegistrationId])
   @@unique([eventId, dragonRiderUserId])
@@ -1202,4 +1214,25 @@ model TournamentResult {
   registration TournamentRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
   @@index([finishingPosition])
+}
+
+// One row per side-category award. setCode is non-null only for OSPREY
+// awards (Top 3 by per-set scale-points contribution). rank is 1..N
+// within the (eventId, kind, setCode) bucket; uniqueness on the rank
+// keeps re-computation idempotent.
+model TrialAward {
+  id             String    @id @default(cuid())
+  eventId        String
+  registrationId String
+  kind           TrialKind
+  setCode        String?
+  rank           Int
+  points         Int
+  createdAt      DateTime  @default(now())
+
+  event        TournamentEvent        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registration TournamentRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, kind, setCode, rank])
+  @@index([eventId, kind])
 }
