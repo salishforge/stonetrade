@@ -16,6 +16,21 @@ interface RecentSaleRow {
   condition: string;
 }
 
+interface EbayListingRow {
+  price: string;
+  condition: string;
+  url: string;
+  createdAt: string;
+}
+
+/**
+ * eBay listings ingested within this window are still likely to be live.
+ * Listings older than this are skipped from the deep-link panel — many
+ * will have ended. The price-history side of the pricing engine still
+ * uses the older rows; this filter applies only to the outbound-link UI.
+ */
+const EBAY_LISTING_FRESHNESS_DAYS = 14;
+
 /**
  * Server action: add a buylist entry (or bounty) for the current card.
  * Auto-creates a default Buylist for the user if they don't have one yet —
@@ -156,6 +171,22 @@ export default async function CardDetailPage({
       AND p."createdAt" > NOW() - INTERVAL '30 days'
     ORDER BY p."createdAt" DESC
     LIMIT 8
+  `;
+
+  // Active eBay listings — outbound deep-links so members can find supply
+  // matching their price. Cheapest first. Skips rows ingested before this
+  // feature shipped (ebayItemUrl IS NULL) and rows older than the freshness
+  // window (likely ended).
+  const ebayListings = await prisma.$queryRaw<EbayListingRow[]>`
+    SELECT p.price::text AS price, p.condition::text AS condition,
+           p."ebayItemUrl" AS url, p."createdAt"::text AS "createdAt"
+    FROM "PriceDataPoint" p
+    WHERE p."cardId" = ${card.id}
+      AND p.source = 'EBAY_LISTED'
+      AND p."ebayItemUrl" IS NOT NULL
+      AND p."createdAt" > NOW() - (${EBAY_LISTING_FRESHNESS_DAYS}::int * INTERVAL '1 day')
+    ORDER BY p.price ASC
+    LIMIT 6
   `;
 
   const lowestAsk = card.listings.length > 0 ? Number(card.listings[0].price) : null;
@@ -431,6 +462,50 @@ export default async function CardDetailPage({
               </div>
             )}
           </div>
+
+          {/* Outbound eBay deep-links — supply we don't host, surfaced so the
+              member can find a card that fits their budget without leaving
+              empty-handed when our marketplace doesn't have it. Cheapest
+              first; opens in a new tab; clearly labelled as off-site. */}
+          {ebayListings.length > 0 && (
+            <div>
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="font-display text-[20px] text-ink-primary tracking-tight" style={{ fontVariationSettings: "'opsz' 36" }}>
+                  Also on eBay
+                </h2>
+                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
+                  off-site · last {EBAY_LISTING_FRESHNESS_DAYS}d
+                </span>
+              </div>
+
+              <div className="border border-border/40 rounded-md overflow-hidden">
+                <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-4 py-2 bg-surface-raised/60 font-mono text-[10px] uppercase tracking-[0.1em] text-ink-muted">
+                  <span>Listing</span>
+                  <span>Cond</span>
+                  <span className="text-right">Price</span>
+                </div>
+                {ebayListings.map((l, i) => (
+                  <a
+                    key={i}
+                    href={l.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="grid grid-cols-[1fr_auto_auto] gap-4 px-4 py-2.5 border-t border-border/40 hover:bg-surface-raised/40 transition-colors items-baseline"
+                  >
+                    <span className="text-[13px] text-ink-secondary truncate">
+                      View on eBay <span aria-hidden>↗</span>
+                    </span>
+                    <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-ink-secondary">
+                      {l.condition?.replace("_", " ").toLowerCase() ?? "—"}
+                    </span>
+                    <span className="font-mono text-[14px] tabular-nums text-ink-primary text-right">
+                      ${Number(l.price).toFixed(2)}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Card text — only if we have it. Clean text block, no Card chrome. */}
           {(card.rulesText || card.flavorText) && (
