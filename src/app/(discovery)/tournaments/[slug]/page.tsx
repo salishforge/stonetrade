@@ -214,6 +214,107 @@ export default async function TournamentDetailPage({
           </CardContent>
         </Card>
       )}
+
+      <TrialAwardsSection eventId={event.id} registrations={event.registrations} />
     </div>
+  );
+}
+
+async function TrialAwardsSection({
+  eventId,
+  registrations,
+}: {
+  eventId: string;
+  registrations: Array<{
+    id: string;
+    declaredPoints: number;
+    dragon: {
+      ownerType: string;
+      userOwner: { username: string | null; displayName: string | null } | null;
+      packOwner: { name: string | null; slug: string | null } | null;
+    };
+    rider: { username: string; displayName: string | null };
+  }>;
+}) {
+  const awards = await prisma.trialAward.findMany({
+    where: { eventId },
+    orderBy: [{ kind: "asc" }, { setCode: "asc" }, { rank: "asc" }],
+  });
+  if (awards.length === 0) return null;
+
+  const regById = new Map(registrations.map((r) => [r.id, r]));
+  const labelFor = (regId: string): string => {
+    const r = regById.get(regId);
+    if (!r) return "—";
+    const dragon =
+      r.dragon.ownerType === "USER"
+        ? `Personal (@${r.dragon.userOwner?.username ?? "—"})`
+        : `Pack: ${r.dragon.packOwner?.name ?? "—"}`;
+    const rider = r.rider.displayName ?? r.rider.username;
+    return `${dragon} · rider ${rider}`;
+  };
+
+  const topDragon = awards.find((a) => a.kind === "TOP_DRAGON");
+  const top10 = awards.filter((a) => a.kind === "TOP_10");
+  const ospreyBySet = new Map<string, typeof awards>();
+  for (const a of awards) {
+    if (a.kind !== "OSPREY" || !a.setCode) continue;
+    const list = ospreyBySet.get(a.setCode) ?? [];
+    list.push(a);
+    ospreyBySet.set(a.setCode, list);
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Hunting Trials</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Side categories from PDF slide 16. Top Dragon + Top 10 rank by entered points; Osprey ranks by per-set scale-points contribution.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {topDragon && (
+          <div>
+            <h3 className="text-sm font-semibold mb-1">Top Dragon</h3>
+            <p className="text-sm">
+              {labelFor(topDragon.registrationId)} · {topDragon.points.toLocaleString()} pts
+            </p>
+          </div>
+        )}
+        {top10.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold mb-1">Top 10 Dragons</h3>
+            <ol className="text-sm space-y-1 list-decimal list-inside">
+              {top10.map((a) => (
+                <li key={a.id}>
+                  {labelFor(a.registrationId)} · {a.points.toLocaleString()} pts
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+        {ospreyBySet.size > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold mb-1">Osprey Dragons (per set)</h3>
+            <div className="space-y-2">
+              {[...ospreyBySet.entries()].map(([setCode, entries]) => (
+                <div key={setCode}>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                    {setCode}
+                  </p>
+                  <ol className="text-sm space-y-1 list-decimal list-inside ml-2">
+                    {entries.map((a) => (
+                      <li key={a.id}>
+                        {labelFor(a.registrationId)} · {a.points.toLocaleString()} pts
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

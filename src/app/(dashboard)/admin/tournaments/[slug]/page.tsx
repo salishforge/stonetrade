@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminUser } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResultsForm } from "./ResultsForm";
+import { ComputeTrialsButton } from "./ComputeTrialsButton";
 
 export default async function AdminTournamentDetailPage({
   params,
@@ -72,6 +73,18 @@ export default async function AdminTournamentDetailPage({
         </CardHeader>
         <CardContent>
           <ResultsForm slug={event.slug} entries={initialResults} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Hunting Trials</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Compute side categories (Top Dragon · Top 10 · Osprey per set). Idempotent — re-running replaces all prior award rows for this event.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ComputeTrialsButton slug={event.slug} />
         </CardContent>
       </Card>
     </div>
