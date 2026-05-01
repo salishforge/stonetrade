@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { CardImage } from "@/components/cards/CardImage";
 import { PriceStack } from "@/components/marketplace/PriceStack";
+import { AttributionPanel } from "@/components/marketplace/AttributionPanel";
+import { WatchToggle } from "@/components/marketplace/WatchToggle";
+import { loadCardAttribution } from "@/lib/attribution/load";
 
 interface RecentSaleRow {
   price: string;
@@ -157,6 +160,25 @@ export default async function CardDetailPage({
 
   const lowestAsk = card.listings.length > 0 ? Number(card.listings[0].price) : null;
 
+  // Attribution + alert state. Both are scoped to this exact card+treatment
+  // — the same row the marketValue panel above is reading from.
+  const [attribution, existingAlerts] = await Promise.all([
+    card.marketValue
+      ? loadCardAttribution({
+          cardId: card.id,
+          trend7d: card.marketValue.trend7d != null ? Number(card.marketValue.trend7d) : null,
+          scarcityTier: card.marketValue.scarcityTier ?? null,
+          totalAvailable: card.marketValue.totalAvailable,
+          totalWanted: card.marketValue.totalWanted,
+          priCurrent: card.engineMetrics?.pri ?? null,
+        })
+      : null,
+    prisma.userAlert.findMany({
+      where: { userId: currentUser.id, cardId: card.id, active: true },
+      select: { id: true, type: true, thresholdPct: true },
+    }),
+  ]);
+
   return (
     <div className="container mx-auto max-w-7xl py-8 px-4">
       {/* Breadcrumb — small caps, not chrome. */}
@@ -261,6 +283,12 @@ export default async function CardDetailPage({
                 No price data on this treatment yet.
                 <Link href="/report-sale" className="text-gold hover:text-gold-light ml-2 normal-case tracking-normal">Report a sale →</Link>
               </p>
+            )}
+
+            {attribution && (
+              <div className="mt-5 pt-5 border-t border-border/40">
+                <AttributionPanel attribution={attribution} />
+              </div>
             )}
           </div>
 
@@ -461,6 +489,18 @@ export default async function CardDetailPage({
                 </div>
               ))
             )}
+          </div>
+
+          {/* Watch / alert subscription — quiet, four-row toggle list. */}
+          <div className="mt-6 pt-4 border-t border-border/40">
+            <WatchToggle
+              cardId={card.id}
+              existing={existingAlerts.map((a) => ({
+                id: a.id,
+                type: a.type,
+                thresholdPct: a.thresholdPct != null ? a.thresholdPct.toString() : null,
+              }))}
+            />
           </div>
 
           {/* Want / Bounty — same form, isBounty toggle promotes to home page. */}
