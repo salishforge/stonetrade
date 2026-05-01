@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminUser, requireUser } from "@/lib/auth";
 import { updateTournamentSchema } from "@/lib/validators/tournament";
+import { releaseBinderLocksForEvent } from "@/lib/tournament/binder-lock";
 
 export async function GET(
   _request: NextRequest,
@@ -57,5 +58,13 @@ export async function PATCH(
       status: parsed.data.status ?? undefined,
     },
   });
+
+  // Status transitions to COMPLETED or CANCELLED release any active
+  // binder locks for the event. Idempotent — already-released locks
+  // are unaffected.
+  if (parsed.data.status === "COMPLETED" || parsed.data.status === "CANCELLED") {
+    await releaseBinderLocksForEvent(updated.id);
+  }
+
   return NextResponse.json({ data: updated });
 }
