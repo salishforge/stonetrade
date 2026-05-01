@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { registerDragonSchema } from "@/lib/validators/tournament";
+import { lockBinderForRegistration } from "@/lib/tournament/binder-lock";
 
 // Register a Dragon for a tournament. Requirements:
 //   * Caller must own the Dragon (USER ownerType = the caller; PACK owner
@@ -105,6 +106,9 @@ export async function POST(
         declaredPoints: parsed.data.declaredPoints,
       },
     });
+    // Snapshot the binder. Per PDF slides 9 + 13, the registered binder
+    // is held until event end; the contributing scales become read-only.
+    await lockBinderForRegistration(reg.id);
     return NextResponse.json({ data: reg }, { status: 201 });
   } catch (e) {
     // P2002 — uniqueness violation on (event, dragon) or (event, rider).

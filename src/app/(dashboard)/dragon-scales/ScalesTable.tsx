@@ -26,6 +26,14 @@ type Scale = {
     isToken: boolean;
     set: { code: string; name: string };
   };
+  // Populated when the scale is part of an active TournamentBinderLock
+  // (registration is open and event hasn't concluded). Empty array when
+  // the scale is freely editable.
+  lockedIn?: Array<{
+    binderLock: {
+      registration: { event: { name: string; slug: string } };
+    };
+  }>;
 };
 
 const VISIBILITY_LABEL: Record<Scale["visibility"], string> = {
@@ -103,10 +111,20 @@ export function ScalesTable({ initialScales }: { initialScales: Scale[] }) {
           </tr>
         </thead>
         <tbody>
-          {initialScales.map((s) => (
-            <tr key={s.id} className="border-t hover:bg-muted/30">
+          {initialScales.map((s) => {
+            const lock = s.lockedIn && s.lockedIn[0];
+            const isLocked = !!lock;
+            return (
+            <tr key={s.id} className={`border-t ${isLocked ? "bg-amber-50/50 dark:bg-amber-950/20" : "hover:bg-muted/30"}`}>
               <td className="px-4 py-3">
-                <div className="font-medium">{s.card.name}</div>
+                <div className="font-medium flex items-center gap-1.5">
+                  {isLocked && (
+                    <span title={`Locked by registration for ${lock.binderLock.registration.event.name}`}>
+                      🔒
+                    </span>
+                  )}
+                  {s.card.name}
+                </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-1.5">
                   {s.card.cardNumber}
                   {s.card.isStoneseeker && (
@@ -117,6 +135,11 @@ export function ScalesTable({ initialScales }: { initialScales: Scale[] }) {
                   )}
                   {s.card.isToken && (
                     <Badge variant="outline" className="text-[10px] px-1 py-0">Token</Badge>
+                  )}
+                  {isLocked && (
+                    <Badge variant="outline" className="text-[10px] px-1 py-0">
+                      Locked · {lock.binderLock.registration.event.slug}
+                    </Badge>
                   )}
                 </div>
               </td>
@@ -139,7 +162,7 @@ export function ScalesTable({ initialScales }: { initialScales: Scale[] }) {
                   <select
                     className="h-7 rounded-md border bg-transparent px-1.5 text-xs"
                     value={s.visibility}
-                    disabled={pending || busyId === s.id}
+                    disabled={pending || busyId === s.id || isLocked}
                     onChange={(e) =>
                       setVisibility(s.id, e.target.value as Scale["visibility"])
                     }
@@ -159,14 +182,16 @@ export function ScalesTable({ initialScales }: { initialScales: Scale[] }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={pending || busyId === s.id}
+                  disabled={pending || busyId === s.id || isLocked}
                   onClick={() => handleDelete(s.id)}
+                  title={isLocked ? "Locked by an active tournament registration" : undefined}
                 >
                   Remove
                 </Button>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

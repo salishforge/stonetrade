@@ -32,6 +32,20 @@ export default async function DragonScalesPage() {
           set: { select: { code: true, name: true } },
         },
       },
+      // Active locks: any LockedScale whose parent binderLock hasn't been
+      // released. Used by the table to disable mutations + show a chip.
+      lockedIn: {
+        where: { binderLock: { releasedAt: null } },
+        select: {
+          binderLock: {
+            select: {
+              registration: {
+                select: { event: { select: { name: true, slug: true } } },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: [{ pointsCached: "desc" }, { createdAt: "desc" }],
   });

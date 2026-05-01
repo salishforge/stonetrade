@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAdminUser } from "@/lib/auth";
 import { enterResultsSchema } from "@/lib/validators/tournament";
 import { computePayouts } from "@/lib/tournament/payout";
+import { releaseBinderLocksForEvent } from "@/lib/tournament/binder-lock";
 
 // Admin: enter finishing positions for a completed event. The payout engine
 // expands them into base + Dragon Gold payouts and persists one
@@ -84,6 +85,9 @@ export async function POST(
       where: { id: event.id },
       data: { status: "COMPLETED" },
     });
+    // Lock release rides in the same transaction so a results re-entry
+    // doesn't leave dangling locks on a still-COMPLETED event.
+    await releaseBinderLocksForEvent(event.id, tx);
   });
 
   return NextResponse.json({ data: { resultsRecorded: computed.length, computed } });

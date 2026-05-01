@@ -927,6 +927,11 @@ model DragonScale {
   // owner — only the outward display changes).
   visibility RegistryVisibility @default(PRIVATE)
 
+  // Snapshot membership in any active TournamentBinderLock. A scale with
+  // any LockedScale row whose binderLock.releasedAt is null cannot be
+  // mutated until the lock releases. See src/lib/tournament/binder-lock.ts.
+  lockedIn LockedScale[]
+
   notes String?
 
   createdAt DateTime @default(now())
@@ -1189,6 +1194,7 @@ model TournamentRegistration {
   rider       User               @relation("RiderRegistrations", fields: [dragonRiderUserId], references: [id])
   result      TournamentResult?
   trialAwards TrialAward[]
+  binderLock  TournamentBinderLock?
 
   @@unique([eventId, dragonRegistrationId])
   @@unique([eventId, dragonRiderUserId])
@@ -1235,4 +1241,44 @@ model TrialAward {
 
   @@unique([eventId, kind, setCode, rank])
   @@index([eventId, kind])
+}
+
+// =============================================================================
+// Binder check-in / locking (PDF slides 9 + 13)
+// =============================================================================
+//
+// At tournament registration, the contributing user's (or pack members')
+// scales are snapshotted into a TournamentBinderLock. Each LockedScale
+// records which DragonScale row was locked and the points it carried at
+// the moment of lock — useful for the post-event audit (PDF: declared ≤
+// actual). While the lock is active (releasedAt = null), the locked scale
+// rows cannot be edited or deleted; new scales added to the binder after
+// lock are unaffected. The lock auto-releases when the event status
+// transitions to COMPLETED or CANCELLED.
+
+model TournamentBinderLock {
+  id                       String    @id @default(cuid())
+  tournamentRegistrationId String    @unique
+  lockedAt                 DateTime  @default(now())
+  releasedAt               DateTime?
+  declaredPointsAtLock     Int
+  totalPointsAtLock        Int
+
+  registration TournamentRegistration @relation(fields: [tournamentRegistrationId], references: [id], onDelete: Cascade)
+  lockedScales LockedScale[]
+
+  @@index([releasedAt])
+}
+
+model LockedScale {
+  id            String @id @default(cuid())
+  binderLockId  String
+  dragonScaleId String
+  pointsAtLock  Int
+
+  binderLock  TournamentBinderLock @relation(fields: [binderLockId], references: [id], onDelete: Cascade)
+  dragonScale DragonScale          @relation(fields: [dragonScaleId], references: [id], onDelete: Cascade)
+
+  @@unique([binderLockId, dragonScaleId])
+  @@index([dragonScaleId]) // hot path: "is this scale locked?"
 }

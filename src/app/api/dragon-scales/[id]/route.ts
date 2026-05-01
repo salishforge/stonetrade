@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { updateDragonScaleSchema } from "@/lib/validators/dragon";
 import { recalculateForUserAndPacks } from "@/lib/dragon/recalculate";
+import { activeLocksForScale } from "@/lib/tournament/binder-lock";
 
 export async function PATCH(
   request: NextRequest,
@@ -26,6 +27,21 @@ export async function PATCH(
   });
   if (!existing || existing.userId !== user.id) {
     return NextResponse.json({ error: "Dragon scale not found" }, { status: 404 });
+  }
+
+  // Binder lock: while the scale is part of an active TournamentBinderLock
+  // (registration is open and event hasn't completed), no mutations are
+  // permitted — the binder snapshot is the authoritative pre-event state
+  // for the audit.
+  const locks = await activeLocksForScale(id);
+  if (locks.length > 0) {
+    const ev = locks[0].binderLock.registration.event;
+    return NextResponse.json(
+      {
+        error: `This scale is locked by your registration for "${ev.name}" (${ev.slug}). It can be modified again after the event concludes.`,
+      },
+      { status: 409 },
+    );
   }
 
   const input = parsed.data;
@@ -85,6 +101,17 @@ export async function DELETE(
   const existing = await prisma.dragonScale.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) {
     return NextResponse.json({ error: "Dragon scale not found" }, { status: 404 });
+  }
+
+  const locks = await activeLocksForScale(id);
+  if (locks.length > 0) {
+    const ev = locks[0].binderLock.registration.event;
+    return NextResponse.json(
+      {
+        error: `This scale is locked by your registration for "${ev.name}" (${ev.slug}). Cannot remove until the event concludes.`,
+      },
+      { status: 409 },
+    );
   }
 
   await prisma.dragonScale.delete({ where: { id } });
