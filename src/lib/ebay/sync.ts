@@ -92,6 +92,7 @@ async function persistItem(
       condition: mapCondition(item.condition),
       treatment,
       ebayListingId: item.itemId,
+      ebayItemUrl: item.itemUrl || null,
       verified: source === "EBAY_SOLD",
       createdAt: item.date ? new Date(item.date) : undefined,
     },

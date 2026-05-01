@@ -353,6 +353,7 @@ model PriceDataPoint {
 
   // Source-specific references
   ebayListingId String?
+  ebayItemUrl   String?
   listingId     String?
   pollId        String?
   reportedBy    String?
