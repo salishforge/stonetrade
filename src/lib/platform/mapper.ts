@@ -21,10 +21,28 @@ interface MarketplaceCardInput {
   imageUrl: string | null;
 }
 
-/** Capitalize first letter of rarity (platform uses lowercase) */
+// Map of single-letter rarity codes used by older / shorter platform payloads
+// to the long-form names the rest of the app (Dragon Cup scoring,
+// OCM_SERIAL_LIMITS lookups) expects. Anything not in this map falls through
+// to the simple capitalise-first-letter pass — that way "epic" still becomes
+// "Epic" but "E" also becomes "Epic" instead of staying as the bare letter.
+const RARITY_EXPANSIONS: Record<string, string> = {
+  C: "Common",
+  U: "Uncommon",
+  R: "Rare",
+  E: "Epic",
+  M: "Mythic",
+  T: "Token",
+  P: "Promo",
+};
+
+/** Normalise a platform rarity string to long-form. */
 function normalizeRarity(rarity: string): string {
   if (!rarity) return rarity;
-  return rarity.charAt(0).toUpperCase() + rarity.slice(1).toLowerCase();
+  const trimmed = rarity.trim();
+  // Expand if it's a known single-letter code; otherwise capitalise.
+  if (RARITY_EXPANSIONS[trimmed]) return RARITY_EXPANSIONS[trimmed];
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 }
 
 /** Build rules text from abilities array */

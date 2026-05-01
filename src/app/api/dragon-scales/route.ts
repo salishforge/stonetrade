@@ -111,7 +111,11 @@ export async function POST(request: NextRequest) {
   // OCM cards are serialised at per-rarity print runs. The serial number
   // identifies the specific physical card; we require it on creation so
   // the registry can show "5/10" slot-by-slot, and reject claims that
-  // collide with an existing serial.
+  // collide with an existing serial. The serial is canonicalised to
+  // "{n}/{cap}" before persistence so "5", "5/10", and "05/10" all collapse
+  // to the same key — without this, the per-serial unique index could be
+  // bypassed by typing variation.
+  let ocmCanonicalSerial: string | null = null;
   if (card.treatment === "OCM") {
     if (input.quantity > 1) {
       return NextResponse.json(
@@ -130,24 +134,29 @@ export async function POST(request: NextRequest) {
     // rows have serialTotal=null even though their rarity is a known one;
     // without the fallback the bounds check would silently pass.
     const cap = card.serialTotal ?? OCM_SERIAL_LIMITS[card.rarity] ?? null;
-    if (cap != null) {
-      const parsed = parseSerialNumber(input.serialNumber);
-      if (!parsed || parsed.numerator < 1 || parsed.numerator > cap) {
-        return NextResponse.json(
-          {
-            error: `Serial must be in 1..${cap} for this OCM (got "${input.serialNumber}")`,
-          },
-          { status: 400 },
-        );
-      }
+    const parsed = parseSerialNumber(input.serialNumber);
+    if (!parsed) {
+      return NextResponse.json(
+        { error: `Couldn't parse serial number "${input.serialNumber}"` },
+        { status: 400 },
+      );
     }
+    if (cap != null && (parsed.numerator < 1 || parsed.numerator > cap)) {
+      return NextResponse.json(
+        {
+          error: `Serial must be in 1..${cap} for this OCM (got "${input.serialNumber}")`,
+        },
+        { status: 400 },
+      );
+    }
+    ocmCanonicalSerial = cap != null ? `${parsed.numerator}/${cap}` : `${parsed.numerator}`;
     const existing = await prisma.dragonScale.findFirst({
-      where: { cardId: card.id, treatment: "OCM", serialNumber: input.serialNumber },
+      where: { cardId: card.id, treatment: "OCM", serialNumber: ocmCanonicalSerial },
       select: { id: true },
     });
     if (existing) {
       return NextResponse.json(
-        { error: `OCM serial ${input.serialNumber} of this card is already claimed` },
+        { error: `OCM serial ${ocmCanonicalSerial} of this card is already claimed` },
         { status: 409 },
       );
     }
@@ -176,10 +185,15 @@ export async function POST(request: NextRequest) {
       treatment: card.treatment,
       bonusVariant,
       quantity: input.quantity,
-      // Stonefoil 1/1 doesn't need a serial; OCM requires one (already
-      // validated above). Other treatments accept whatever the user types.
+      // Stonefoil 1/1 doesn't need a serial; OCM uses the canonical form
+      // built above so the per-serial unique index isn't bypassed by typing
+      // variants. Other treatments pass the raw user input through.
       serialNumber:
-        card.treatment === "Stonefoil" ? null : input.serialNumber ?? null,
+        card.treatment === "Stonefoil"
+          ? null
+          : card.treatment === "OCM"
+          ? ocmCanonicalSerial
+          : input.serialNumber ?? null,
       collectionCardId: input.collectionCardId ?? null,
       notes: input.notes ?? null,
       visibility: input.visibility,
