@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { syncEbayPricesForCards, syncEbayPricesForGame } from "@/lib/ebay/sync";
 import { isEbayConfigured, ebayEnvironment } from "@/lib/ebay/client";
+import { getAdminUser, isCronAuthorized } from "@/lib/auth";
 
 const bodySchema = z.union([
   z.object({
@@ -27,6 +28,16 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Triggers eBay API calls — without a gate, an anonymous attacker can
+  // drain our API rate quota and arbitrarily pollute price signals via
+  // injected sync runs. Allow cron (scheduled syncs) or an admin user.
+  if (!isCronAuthorized(request)) {
+    const admin = await getAdminUser();
+    if (!admin) {
+      return NextResponse.json({ error: "Admin or CRON_TOKEN required" }, { status: 403 });
+    }
+  }
+
   if (!isEbayConfigured()) {
     return NextResponse.json(
       { error: "eBay is not configured. Set EBAY_APP_ID and EBAY_CERT_ID." },
