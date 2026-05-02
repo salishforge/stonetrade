@@ -12,8 +12,25 @@ import { workflows } from "@/lib/notify/workflows";
  *
  *   npx novu sync --bridge-url https://<host>/api/novu \
  *                 --secret-key $NOVU_API_KEY
+ *
+ * Lazy construction note: `serve({ workflows })` instantiates a Novu Client
+ * synchronously and reads NOVU_SECRET_KEY at construction time. Doing that
+ * at module load breaks `next build`'s page-data-collection step in any
+ * environment without the secret (CI, fresh checkouts). We defer the call
+ * until the first request — at which point the running server has the real
+ * env var available. Behavior at runtime is identical; only the timing of
+ * the constructor call moves.
  */
-export const { GET, POST, OPTIONS } = serve({ workflows });
+type NovuHandlers = ReturnType<typeof serve>;
+let _handlers: NovuHandlers | null = null;
+function handlers(): NovuHandlers {
+  if (!_handlers) _handlers = serve({ workflows });
+  return _handlers;
+}
+
+export const GET: NovuHandlers["GET"] = (req, ctx) => handlers().GET(req, ctx);
+export const POST: NovuHandlers["POST"] = (req, ctx) => handlers().POST(req, ctx);
+export const OPTIONS: NovuHandlers["OPTIONS"] = (req, ctx) => handlers().OPTIONS(req, ctx);
 
 // The framework's serve() handler uses Node-only APIs (crypto, etc.) and is
 // not compatible with the Edge runtime. Pin Node so a future global edge

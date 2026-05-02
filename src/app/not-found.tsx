@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -8,9 +9,9 @@ export default function NotFound() {
       <p className="text-muted-foreground mb-6">
         The page you&apos;re looking for doesn&apos;t exist.
       </p>
-      <a href="/" className={cn(buttonVariants())}>
+      <Link href="/" className={cn(buttonVariants())}>
         Go Home
-      </a>
+      </Link>
     </div>
   );
 }
