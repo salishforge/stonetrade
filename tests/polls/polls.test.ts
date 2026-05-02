@@ -45,7 +45,8 @@ function postReq(url: string, body: object): NextRequest {
 
 describe("POST /api/polls", () => {
   it("creates an active 7-day poll", async () => {
-    const { card } = await seed();
+    const { card, user } = await seed();
+    setMockUser(user.id);
     const res = await listPOST(postReq("http://localhost/api/polls", { cardId: card.id, treatment: "Classic Paper" }));
     expect(res.status).toBe(201);
     const poll = (await res.json()).data;
@@ -59,12 +60,15 @@ describe("POST /api/polls", () => {
   });
 
   it("400 on missing cardId or treatment", async () => {
+    const { user } = await seed();
+    setMockUser(user.id);
     const res = await listPOST(postReq("http://localhost/api/polls", {}));
     expect(res.status).toBe(400);
   });
 
   it("409 when an ACTIVE poll already exists for the card + treatment", async () => {
-    const { card } = await seed();
+    const { card, user } = await seed();
+    setMockUser(user.id);
     await listPOST(postReq("http://localhost/api/polls", { cardId: card.id, treatment: "Classic Paper" }));
     const res2 = await listPOST(postReq("http://localhost/api/polls", { cardId: card.id, treatment: "Classic Paper" }));
     expect(res2.status).toBe(409);
