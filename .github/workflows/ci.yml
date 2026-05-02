@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master, main]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 jobs:
   verify:
@@ -49,3 +49,9 @@ jobs:
       - run: npm run lint
 
       - run: npm test
+
+      # Production build catches issues that tsc/lint don't — bundling errors,
+      # module-init failures, route-export validation. Page-data collection
+      # imports every route module, so any regression that adds a top-level
+      # side effect (env-var reads, network calls, etc.) trips here first.
+      - run: npm run build

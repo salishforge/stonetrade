@@ -44,6 +44,15 @@ export const metadata: Metadata = {
   description: brandForMetadata.tagline,
 };
 
+// The root layout calls getCurrentUser() (a live Prisma query) on every
+// render to scope the header chrome (notifications inbox, user menu).
+// That makes every descendant page implicitly dynamic — so prerendering
+// any of them at build time would require a live database. Mark the whole
+// app dynamic and skip the prerender pass entirely. Pages that genuinely
+// can be static (rare here — this is a marketplace) can opt back in
+// individually via `export const dynamic = "auto"`.
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
