@@ -251,10 +251,16 @@ describe("POST /api/stripe/webhook", () => {
     expect(dataPoints).toHaveLength(0);
 
     expect(refundsCreateMock).toHaveBeenCalledOnce();
-    expect(refundsCreateMock).toHaveBeenCalledWith({
-      payment_intent: "pi_oversell",
-      reason: "requested_by_customer",
-    });
+    // Hardening pass: refund is now created with a stable idempotency key
+    // derived from the payment_intent so a re-delivered webhook can't
+    // double-refund. The Stripe SDK accepts this as a 2nd argument.
+    expect(refundsCreateMock).toHaveBeenCalledWith(
+      {
+        payment_intent: "pi_oversell",
+        reason: "requested_by_customer",
+      },
+      { idempotencyKey: "oversold-refund:pi_oversell" },
+    );
   });
 
   it("idempotency on CANCELLED: replaying the event does not re-refund", async () => {
