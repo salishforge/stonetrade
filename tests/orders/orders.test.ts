@@ -118,12 +118,17 @@ describe("POST /api/orders", () => {
     expect((await res.json()).error).toMatch(/cannot buy your own/i);
   });
 
-  it("400 when requested quantity exceeds available stock", async () => {
+  it("409 when requested quantity exceeds available stock", async () => {
+    // Hardening pass: insufficient-stock conflicts now return 409 (the order
+    // creation path holds a SELECT … FOR UPDATE on the listing and counts
+    // outstanding PENDING_PAYMENT reservations into trueAvailable, so this
+    // is properly a concurrent-resource conflict rather than a 400-class
+    // bad request).
     const { listing, buyer } = await seed({ listingQuantity: 5, listingQuantitySold: 4 });
     setMockUser(buyer.id);
 
     const res = await POST(makeRequest(validBody({ listingId: listing.id, quantity: 2 })));
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(409);
     expect((await res.json()).error).toMatch(/Only 1 available/);
   });
 
@@ -163,13 +168,17 @@ describe("POST /api/orders", () => {
     expect(Number(order.platformFee)).toBe(1.5);
   });
 
-  it("zero shipping when shippingMethod is not present in listing options", async () => {
+  it("400 when shippingMethod is not present in listing options", async () => {
+    // Hardening pass: a missing shipping method used to default to $0,
+    // which let a seller drop shipping to free between order creation and
+    // checkout. Now we reject with 400 — the buyer must pick a method the
+    // listing actually offers.
     const { listing, buyer } = await seed({ shippingOptions: [{ method: "express", price: 12 }] });
     setMockUser(buyer.id);
 
     const res = await POST(makeRequest(validBody({ listingId: listing.id, shippingMethod: "standard" })));
-    const order = (await res.json()).data;
-    expect(Number(order.shipping)).toBe(0);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/Shipping method "standard" not offered/);
   });
 
   describe("offer redemption", () => {
