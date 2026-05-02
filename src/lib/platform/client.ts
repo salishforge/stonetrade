@@ -4,6 +4,7 @@ import type {
   PlatformCardStatsParams,
   PlatformCardStatsResponse,
 } from "@/types/platform";
+import { safeFetch } from "@/lib/http/safe-fetch";
 
 const BASE_URL = process.env.WONDERS_PLATFORM_API_URL ?? "http://localhost:8001";
 
@@ -15,7 +16,7 @@ const DECK_BASE_URL =
   BASE_URL.replace(/:8001$/, ":8002");
 
 async function fetchApi<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`);
+  const res = await safeFetch(`${BASE_URL}${path}`);
   if (!res.ok) {
     throw new Error(`Platform API error: ${res.status} ${res.statusText} for ${path}`);
   }
@@ -62,10 +63,13 @@ export async function fetchAllCards(batchSize = 200): Promise<PlatformCardData[]
 }
 
 export async function batchLookup(cardNumbers: string[]): Promise<PlatformCardData[]> {
-  const res = await fetch(`${BASE_URL}/api/v1/cards/batch`, {
+  const res = await safeFetch(`${BASE_URL}/api/v1/cards/batch`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ card_numbers: cardNumbers }),
+    // Batch lookups can return larger payloads when the caller asks for many
+    // cards at once. Allow up to 32 MiB (vs. the default 8 MiB).
+    maxBytes: 32 * 1024 * 1024,
   });
   if (!res.ok) {
     throw new Error(`Platform API batch lookup error: ${res.status}`);
@@ -87,7 +91,7 @@ export async function fetchCardStats(
     }
   }
   const query = searchParams.toString();
-  const res = await fetch(`${DECK_BASE_URL}/api/v1/meta/card-stats${query ? `?${query}` : ""}`);
+  const res = await safeFetch(`${DECK_BASE_URL}/api/v1/meta/card-stats${query ? `?${query}` : ""}`);
   if (!res.ok) {
     throw new Error(`Platform API error: ${res.status} ${res.statusText} for /api/v1/meta/card-stats`);
   }

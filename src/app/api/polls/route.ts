@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const status = request.nextUrl.searchParams.get("status") ?? "ACTIVE";
@@ -19,6 +20,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Polls feed weighted into the composite market value engine. Without
+  // auth, anyone could spawn arbitrary polls and pollute price signals
+  // — gating on requireUser() at minimum ties poll creation to a user
+  // id we can rate-limit / ban / weight.
+  await requireUser();
+
   const body = await request.json();
   const { cardId, treatment } = body as { cardId: string; treatment: string };
 

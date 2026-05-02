@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
 
 let _client: Anthropic | null = null;
@@ -9,6 +10,33 @@ function getClient(): Anthropic {
   }
   return _client;
 }
+
+/**
+ * Validates the shape of an LLM response before we trust it.
+ *
+ * Without this, a hostile or malformed model output (prompt injection in
+ * `card.name` is the obvious vector) could write arbitrary numeric values
+ * — including negative or astronomically large ones — into PriceDataPoint,
+ * which feeds the composite market value engine. Zod constrains every
+ * field to a sane range and rejects anything outside it.
+ *
+ * Bounds picked deliberately:
+ *   - prices ≥ 0 (negative makes no sense; hostile output)
+ *   - prices ≤ $100k (CCG cards rarely exceed this; an outlier estimate
+ *     is a stronger signal something's wrong than that we mispriced
+ *     a 1-of-1 — the human review path can override)
+ *   - reasoning capped to keep DB rows reasonable
+ */
+const estimateResponseSchema = z
+  .object({
+    estimatedLow: z.number().min(0).max(100_000),
+    estimatedMid: z.number().min(0).max(100_000),
+    estimatedHigh: z.number().min(0).max(100_000),
+    reasoning: z.string().min(1).max(500),
+  })
+  .refine((r) => r.estimatedLow <= r.estimatedMid && r.estimatedMid <= r.estimatedHigh, {
+    message: "estimatedLow ≤ estimatedMid ≤ estimatedHigh required",
+  });
 
 interface EstimateResult {
   estimatedLow: number;
@@ -94,7 +122,23 @@ Respond in this exact JSON format only:
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
 
-    const result = JSON.parse(jsonMatch[0]) as EstimateResult;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      console.error("AI price estimation: model returned non-JSON", { cardId, text: text.slice(0, 200) });
+      return null;
+    }
+
+    const validated = estimateResponseSchema.safeParse(parsed);
+    if (!validated.success) {
+      console.error("AI price estimation: response failed schema validation", {
+        cardId,
+        issues: validated.error.issues,
+      });
+      return null;
+    }
+    const result = validated.data;
 
     // Store as AI_ESTIMATE price data point
     await prisma.priceDataPoint.create({
