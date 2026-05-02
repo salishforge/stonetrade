@@ -42,6 +42,7 @@ enum ListingStatus {
   ACTIVE
   SOLD
   RESERVED
+  RESERVED_FOR_PACK
   EXPIRED
   CANCELLED
 }
