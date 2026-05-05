@@ -386,8 +386,8 @@ model CardMarketValue {
   confidence Int @default(0)
 
   // Trends
-  trend7d  Decimal? @db.Decimal(5, 2)
-  trend30d Decimal? @db.Decimal(5, 2)
+  trend7d  Decimal? @db.Decimal(8, 2)
+  trend30d Decimal? @db.Decimal(8, 2)
 
   // Volatility — absolute price stability over the last 30 days
   stdDev30d      Decimal? @db.Decimal(10, 2)
