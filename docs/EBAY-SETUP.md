@@ -37,10 +37,15 @@ EBAY_MARKETPLACE_ID=EBAY_US    # see https://developer.ebay.com/api-docs/static/
 
 ## 4. Verify the OAuth handshake
 
+The admin sync route is guarded — it accepts either an admin user session or
+`Authorization: Bearer $CRON_TOKEN` (set `CRON_TOKEN` in `.env.local` to any
+strong random string; `openssl rand -hex 32` works). All examples below use
+the bearer-token path.
+
 The simplest smoke test is the health endpoint:
 
 ```bash
-curl http://localhost:3000/api/admin/ebay-sync
+curl -H "Authorization: Bearer $CRON_TOKEN" http://localhost:3000/api/admin/ebay-sync
 # => { "data": { "configured": true, "environment": "production" } }
 ```
 
@@ -48,6 +53,7 @@ To exercise the OAuth + Browse paths together, hit `POST` with one card id:
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/ebay-sync \
+  -H "Authorization: Bearer $CRON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"cardIds": ["<some-card-id>"], "perCardLimit": 5}'
 ```
@@ -72,6 +78,7 @@ After approval, your existing keyset gains the `buy.marketplace.insights` scope 
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/ebay-sync \
+  -H "Authorization: Bearer $CRON_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"gameSlug": "wonders-of-the-first", "includeSold": true}'
 ```

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { syncEbayPricesForCards, syncEbayPricesForGame } from "@/lib/ebay/sync";
 import { isEbayConfigured, ebayEnvironment } from "@/lib/ebay/client";
+import { getAdminUser, isCronAuthorized } from "@/lib/auth";
 
 const bodySchema = z.union([
   z.object({
@@ -17,7 +18,20 @@ const bodySchema = z.union([
   }),
 ]);
 
-export async function GET() {
+async function authorize(request: NextRequest): Promise<NextResponse | null> {
+  if (isCronAuthorized(request)) return null;
+  const admin = await getAdminUser();
+  if (admin) return null;
+  return NextResponse.json(
+    { error: "Admin or CRON_TOKEN required" },
+    { status: 403 }
+  );
+}
+
+export async function GET(request: NextRequest) {
+  const denied = await authorize(request);
+  if (denied) return denied;
+
   return NextResponse.json({
     data: {
       configured: isEbayConfigured(),
@@ -27,6 +41,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await authorize(request);
+  if (denied) return denied;
+
   if (!isEbayConfigured()) {
     return NextResponse.json(
       { error: "eBay is not configured. Set EBAY_APP_ID and EBAY_CERT_ID." },
