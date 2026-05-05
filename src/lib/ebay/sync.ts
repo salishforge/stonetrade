@@ -65,27 +65,47 @@ function significantTokens(s: string): string[] {
     .filter((t) => t.length > 2 && !STOPWORDS.has(t));
 }
 
-// Reject items whose title doesn't plausibly match the card. Without this,
-// a query like "Awakened Star Blossom" returns lipstick and Star Wars
-// t-shirts alongside the one real card listing — and our pipeline would
-// happily write those prices into PriceDataPoint.
+// Single-token names under 6 chars (e.g. "Copy", "Punish", "The Mind" → "mind")
+// have signal-to-noise too low to query usefully. eBay returns dozens of
+// unrelated products that share the word AND the set name (which sellers use
+// generically). Skip the request entirely rather than ingest junk.
+function isQueryWorthwhile(card: CardForSync): boolean {
+  const nameWords = significantTokens(card.name);
+  if (nameWords.length === 0) return false;
+  if (nameWords.length === 1 && nameWords[0].length < 6) return false;
+  return true;
+}
+
+// Whole-word match. Substring matching falsely passes "wonder" against
+// "Wonders of the First", so a card named "Wonder Token" matched every
+// Wonders-of-the-First token listing. Word boundaries fix that.
+function containsWord(title: string, word: string): boolean {
+  return new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(
+    title
+  );
+}
+
+// Reject items whose title doesn't plausibly match the card.
 //
-// Match rule: every significant word of the card name must appear in the
-// title, AND at least one game/set identifier must appear (so a generic
-// match like "Star Blossom" on an unrelated product is rejected).
+// Match rule:
+//   1. Every significant word of the card name appears in the title as a
+//      whole word (word-boundary, case-insensitive).
+//   2. The title contains a STRONG game identifier — the game slug or a
+//      game-name token of length >= 6. Set names are NOT sufficient: words
+//      like "Existence" or "Stones" appear constantly on unrelated listings,
+//      and pairing them with a short common card name (Copy, Wanted, Punish)
+//      lets through comic books, vinyl, photographs etc.
 function isLikelyMatch(title: string, card: CardForSync): boolean {
   const t = title.toLowerCase();
   const nameWords = significantTokens(card.name);
-  if (nameWords.length > 0 && !nameWords.every((w) => t.includes(w))) {
+  if (nameWords.length > 0 && !nameWords.every((w) => containsWord(t, w))) {
     return false;
   }
-  const gameSetWords = [
-    ...significantTokens(card.gameName),
-    ...significantTokens(card.setName),
+  const strongGameWords = [
+    ...significantTokens(card.gameName).filter((w) => w.length >= 6),
     card.gameSlug.toLowerCase(),
-  ].filter((w) => w.length >= 4);
-  if (gameSetWords.length === 0) return true;
-  return gameSetWords.some((w) => t.includes(w));
+  ];
+  return strongGameWords.some((w) => containsWord(t, w));
 }
 
 function mapCondition(ebayCondition: string | null): Condition {
@@ -155,6 +175,7 @@ export async function syncEbayPricesForCards(
 
   for (const card of cards) {
     result.cardsScanned++;
+    if (!isQueryWorthwhile(card)) continue;
     const query = buildQuery(card);
 
     try {
