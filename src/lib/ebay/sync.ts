@@ -29,6 +29,9 @@ export interface CardForSync {
   name: string;
   cardNumber: string;
   treatment: string;
+  setName: string;
+  gameName: string;
+  gameSlug: string;
 }
 
 export interface EbaySyncResult {
@@ -46,8 +49,43 @@ type Condition =
   | "HEAVILY_PLAYED"
   | "DAMAGED";
 
+// eBay full-text search returns 0 hits for queries that include card-number
+// suffixes like "CotS_314/401" — sellers don't put set-prefixed numbers in
+// titles. Set name is what they actually use (e.g. "Call of the Stones").
 function buildQuery(card: CardForSync): string {
-  return `${card.name} ${card.cardNumber}`.replace(/\s+/g, " ").trim();
+  return `${card.name} ${card.setName}`.replace(/\s+/g, " ").trim();
+}
+
+const STOPWORDS = new Set(["the", "of", "and", "a", "an", "for"]);
+
+function significantTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 2 && !STOPWORDS.has(t));
+}
+
+// Reject items whose title doesn't plausibly match the card. Without this,
+// a query like "Awakened Star Blossom" returns lipstick and Star Wars
+// t-shirts alongside the one real card listing — and our pipeline would
+// happily write those prices into PriceDataPoint.
+//
+// Match rule: every significant word of the card name must appear in the
+// title, AND at least one game/set identifier must appear (so a generic
+// match like "Star Blossom" on an unrelated product is rejected).
+function isLikelyMatch(title: string, card: CardForSync): boolean {
+  const t = title.toLowerCase();
+  const nameWords = significantTokens(card.name);
+  if (nameWords.length > 0 && !nameWords.every((w) => t.includes(w))) {
+    return false;
+  }
+  const gameSetWords = [
+    ...significantTokens(card.gameName),
+    ...significantTokens(card.setName),
+    card.gameSlug.toLowerCase(),
+  ].filter((w) => w.length >= 4);
+  if (gameSetWords.length === 0) return true;
+  return gameSetWords.some((w) => t.includes(w));
 }
 
 function mapCondition(ebayCondition: string | null): Condition {
@@ -71,12 +109,12 @@ function priceInRange(item: EbayItem): boolean {
 }
 
 async function persistItem(
-  cardId: string,
-  treatment: string,
+  card: CardForSync,
   source: "EBAY_LISTED" | "EBAY_SOLD",
   item: EbayItem
 ): Promise<boolean> {
   if (!item.itemId || !priceInRange(item)) return false;
+  if (!isLikelyMatch(item.title, card)) return false;
 
   const existing = await prisma.priceDataPoint.findFirst({
     where: { source, ebayListingId: item.itemId },
@@ -86,11 +124,11 @@ async function persistItem(
 
   await prisma.priceDataPoint.create({
     data: {
-      cardId,
+      cardId: card.id,
       source,
       price: item.price,
       condition: mapCondition(item.condition),
-      treatment,
+      treatment: card.treatment,
       ebayListingId: item.itemId,
       ebayItemUrl: item.itemUrl || null,
       verified: source === "EBAY_SOLD",
@@ -122,7 +160,7 @@ export async function syncEbayPricesForCards(
     try {
       const active = await searchActiveListings(query, { limit });
       for (const item of active) {
-        const added = await persistItem(card.id, card.treatment, "EBAY_LISTED", item);
+        const added = await persistItem(card, "EBAY_LISTED", item);
         if (added) {
           result.listedAdded++;
           touchedCardIds.add(card.id);
@@ -140,7 +178,7 @@ export async function syncEbayPricesForCards(
       try {
         const sold = await searchSoldItems(query, { limit, daysBack: 90 });
         for (const item of sold) {
-          const added = await persistItem(card.id, card.treatment, "EBAY_SOLD", item);
+          const added = await persistItem(card, "EBAY_SOLD", item);
           if (added) {
             result.soldAdded++;
             touchedCardIds.add(card.id);
@@ -179,12 +217,28 @@ export async function syncEbayPricesForGame(
   gameSlug: string,
   options: { setCode?: string; includeSold?: boolean; perCardLimit?: number } = {}
 ): Promise<EbaySyncResult> {
-  const cards = await prisma.card.findMany({
+  const rows = await prisma.card.findMany({
     where: {
       game: { slug: gameSlug },
       ...(options.setCode ? { set: { code: options.setCode } } : {}),
     },
-    select: { id: true, name: true, cardNumber: true, treatment: true },
+    select: {
+      id: true,
+      name: true,
+      cardNumber: true,
+      treatment: true,
+      set: { select: { name: true } },
+      game: { select: { name: true, slug: true } },
+    },
   });
+  const cards: CardForSync[] = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    cardNumber: r.cardNumber,
+    treatment: r.treatment,
+    setName: r.set.name,
+    gameName: r.game.name,
+    gameSlug: r.game.slug,
+  }));
   return syncEbayPricesForCards(cards, options);
 }

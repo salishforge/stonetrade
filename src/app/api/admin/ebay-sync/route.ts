@@ -58,10 +58,26 @@ export async function POST(request: NextRequest) {
 
   if ("cardIds" in parsed.data) {
     const { prisma } = await import("@/lib/prisma");
-    const cards = await prisma.card.findMany({
+    const rows = await prisma.card.findMany({
       where: { id: { in: parsed.data.cardIds } },
-      select: { id: true, name: true, cardNumber: true, treatment: true },
+      select: {
+        id: true,
+        name: true,
+        cardNumber: true,
+        treatment: true,
+        set: { select: { name: true } },
+        game: { select: { name: true, slug: true } },
+      },
     });
+    const cards = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      cardNumber: r.cardNumber,
+      treatment: r.treatment,
+      setName: r.set.name,
+      gameName: r.game.name,
+      gameSlug: r.game.slug,
+    }));
     const result = await syncEbayPricesForCards(cards, {
       includeSold: parsed.data.includeSold,
       perCardLimit: parsed.data.perCardLimit,
