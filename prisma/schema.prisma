@@ -294,6 +294,20 @@ model Card {
   treatment   String
   buildPoints Int?
 
+  // Gameplay stats — sourced from wonders-2.0 card database.
+  // Nullable so BOBA cards and legacy rows without backfill still load.
+  cost     Int?    // Resource cost to play the card
+  power    Int?    // Combat power; null for non-combatants (Land, Spell, Item)
+  keywords String? // JSON array of keyword abilities, e.g. '["flying","hoard:3"]'
+
+  // Printed card metadata — extracted by the wonders-2.0 vision-ingest pipeline.
+  // All nullable: BOBA cards omit these; WoTF cards populate on sync.
+  class       String? // Card class, e.g. "Religious Fanatic Priest"
+  faction     String? // Faction distinct from orbital, e.g. "Stonekeeper"
+  lineage     String? // Lineage/tribe tag, e.g. "Bio-Synth"
+  abilityName String? // Named ability header printed on card, e.g. "LIGHTSHOW"
+  coreMechanic String? // Mechanic grouping, e.g. "Earthworm Clan"
+
   // Serialization
   isSerialized Boolean @default(false)
   serialTotal  Int?
@@ -318,8 +332,11 @@ model Card {
   // subsequent syncs skip the search API call and go straight to direct lookup.
   pricechartingId String?
 
-  // Generated tsvector column for full-text search; populated by Postgres
-  // from name + cardNumber + rulesText + flavorText with weighted concat.
+  // Generated tsvector column for full-text search. Weights:
+  //   A: name
+  //   B: cardNumber, abilityName
+  //   C: rulesText, keywords
+  //   D: flavorText, faction, lineage, coreMechanic, class
   // Read-only from Prisma's perspective; queried via raw SQL in src/lib/search.
   searchVector Unsupported("tsvector")?
 
@@ -341,6 +358,8 @@ model Card {
   @@index([gameId, name])
   @@index([rarity])
   @@index([orbital])
+  @@index([faction])
+  @@index([class])
 }
 
 // =============================================================================
