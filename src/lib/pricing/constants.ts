@@ -2,9 +2,13 @@
 export const PRICE_WEIGHTS: Record<string, number> = {
   COMPLETED_SALE: 0.40,
   BUYLIST_OFFER: 0.20,
-  SELLER_LISTING: 0.15,
+  SELLER_LISTING: 0.10,
   COMMUNITY_POLL: 0.10,
   EBAY_SOLD: 0.10,
+  // PriceCharting loose-price is a ~30-day rolling average of eBay sold
+  // data — more stable than individual EBAY_SOLD points but less granular.
+  // Calibrate after first real sync runs.
+  PRICECHARTING: 0.15,
   // eBay active listings are asking prices, not transactions — they
   // anchor the high end without overpowering real sales data.
   EBAY_LISTED: 0.05,

@@ -16,6 +16,7 @@ enum PriceSource {
   COMPLETED_SALE
   EBAY_SOLD
   EBAY_LISTED
+  PRICECHARTING
   COMMUNITY_POLL
   BUYLIST_OFFER
   MANUAL_REPORT
@@ -313,6 +314,10 @@ model Card {
   rulesText  String?
   artist     String?
 
+  // Cached PriceCharting product ID — set on first successful match so
+  // subsequent syncs skip the search API call and go straight to direct lookup.
+  pricechartingId String?
+
   // Generated tsvector column for full-text search; populated by Postgres
   // from name + cardNumber + rulesText + flavorText with weighted concat.
   // Read-only from Prisma's perspective; queried via raw SQL in src/lib/search.
@@ -353,11 +358,12 @@ model PriceDataPoint {
   treatment String
 
   // Source-specific references
-  ebayListingId String?
-  ebayItemUrl   String?
-  listingId     String?
-  pollId        String?
-  reportedBy    String?
+  ebayListingId          String?
+  ebayItemUrl            String?
+  pricechartingProductId String?
+  listingId              String?
+  pollId                 String?
+  reportedBy             String?
 
   verified  Boolean  @default(false)
   createdAt DateTime @default(now())
