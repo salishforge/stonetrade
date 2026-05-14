@@ -1,5 +1,5 @@
 import { PrismaClient } from "../../src/generated/prisma/client.js";
-import data from "./data/wotf-existence.json" with { type: "json" };
+import data from "./data/wotf-call-of-the-stones.json" with { type: "json" };
 
 const OCM_SERIAL_LIMITS: Record<string, number> = {
   Common: 99,
@@ -11,13 +11,13 @@ const OCM_SERIAL_LIMITS: Record<string, number> = {
 
 const IMAGE_BASE_URL = process.env.WONDERS_PLATFORM_IMAGE_BASE_URL ?? "http://localhost:3100/cards";
 
-/** Mirrors src/lib/platform/mapper.ts so seed-data cards still render an image. */
 function imageUrlFromCardNumber(cardNumber: string): string {
   const bare = cardNumber.split("/")[0];
+  // COTS_ cards live under their own prefix on the image server.
   const filename =
-    bare.startsWith("CotS_") || bare.startsWith("COTS_") || bare.startsWith("Existence_")
+    bare.startsWith("COTS_") || bare.startsWith("CotS_") || bare.startsWith("Existence_")
       ? `${bare}.webp`
-      : `Existence_${bare}.webp`;
+      : `CotS_${bare}.webp`;
   return `${IMAGE_BASE_URL.replace(/\/$/, "")}/${filename}`;
 }
 
@@ -29,8 +29,8 @@ const TREATMENTS = [
   { name: "Stonefoil", serialized: true },
 ] as const;
 
-export async function seedWotfExistence(prisma: PrismaClient) {
-  console.log("Seeding Wonders of the First — Existence set...");
+export async function seedWotfCallOfTheStones(prisma: PrismaClient) {
+  console.log("Seeding Wonders of the First — Call of the Stones set...");
 
   const game = await prisma.game.upsert({
     where: { slug: data.game.slug },
@@ -80,11 +80,9 @@ export async function seedWotfExistence(prisma: PrismaClient) {
         isStoneseeker,
         isLoreMythic,
         isToken,
-        // Gameplay stats (wonders-2.0 migration 0007)
         cost: card.cost ?? null,
         power: card.power ?? null,
         keywords: card.keywords ?? null,
-        // Printed card metadata (wonders-2.0 migration 0013)
         class: card.class ?? null,
         faction: card.faction ?? null,
         lineage: card.lineage ?? null,

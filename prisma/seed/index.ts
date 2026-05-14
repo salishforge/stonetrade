@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "../../src/generated/prisma/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { seedWotfExistence } from "./wotf-existence.js";
+import { seedWotfCallOfTheStones } from "./wotf-call-of-the-stones.js";
 import { seedBobaAlpha } from "./boba-alpha.js";
 
 async function main() {
@@ -12,6 +13,8 @@ async function main() {
 
   try {
     await seedWotfExistence(prisma);
+    console.log("");
+    await seedWotfCallOfTheStones(prisma);
     console.log("");
     await seedBobaAlpha(prisma);
     console.log("\nSeed complete.");
