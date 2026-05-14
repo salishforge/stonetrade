@@ -329,7 +329,7 @@
       "rulesText": "<Badge variant=\"red\">Rage</Badge>",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -2689,7 +2689,7 @@
       "rulesText": "<Badge variant=\"red\">Flying</Badge>",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -6689,7 +6689,7 @@
       "rulesText": "<Badge variant=\"purple\">Awaken</Badge>: +2",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8189,7 +8189,7 @@
       "rulesText": "<Badge variant=\"red\">Deathstrike</Badge>",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8209,7 +8209,7 @@
       "rulesText": "Equipped Wonder gets +1 and \"<Badge variant=\"red\">flying</Badge>.\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8269,7 +8269,7 @@
       "rulesText": "Whenever a Wonder you control dies here, you may sacrifice this. Return that Wonder from The Abyss to this realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8289,7 +8289,7 @@
       "rulesText": "<Badge variant=\"purple\">Unstable</Badge><br /><Badge variant=\"blue\">ON DEATH</Badge>: Create a 1-power Skeleton token here.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8309,7 +8309,7 @@
       "rulesText": "<Badge variant=\"red\">Flying</Badge>",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8329,7 +8329,7 @@
       "rulesText": "Equipped Wonder gets +2 and \"<Badge variant=\"blue\">ON DEATH</Badge>: Return target Wonder you own with cost 1 or less from The Abyss to here at end of round.\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8349,7 +8349,7 @@
       "rulesText": "<Badge variant=\"orange\">SACRIFICE FREE</Badge>: Put X +1 counters on target Wonder here, where X is its power.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8369,7 +8369,7 @@
       "rulesText": "Equipped Wonder gets +2.<br />Equipped Wonder gets \"<Badge variant=\"blue\">ON ATTACK</Badge>: You may destroy target token here.\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8389,7 +8389,7 @@
       "rulesText": "This can't be targeted by spells or effects controlled by opponents.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8409,7 +8409,7 @@
       "rulesText": "<Badge variant=\"orange\">SACRIFICE FREE</Badge>: Until end of round, target Wonder gets +3 and \"When this dies, draw 2 cards.\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8469,7 +8469,7 @@
       "rulesText": "<Badge variant=\"blue\">ON PLAY</Badge> and <Badge variant=\"orange\">TAP FREE</Badge>: Create a Story token in this or an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8489,7 +8489,7 @@
       "rulesText": "<Badge variant=\"blue\">ON PLAY</Badge> and <Badge variant=\"orange\">TAP FREE</Badge>: Create a Story token in this or an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8529,7 +8529,7 @@
       "rulesText": "<Badge variant=\"blue\">ON ATTACK</Badge>: Put two +1 counters on this.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8549,7 +8549,7 @@
       "rulesText": "Equipped Wonder gets +2 and \"Effects controlled by opponents can't tap this\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8569,7 +8569,7 @@
       "rulesText": "<Badge variant=\"blue\">ON PLAY</Badge> and <Badge variant=\"orange\">TAP FREE</Badge>: Create a Story token in this or an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8589,7 +8589,7 @@
       "rulesText": "<Badge variant=\"blue\">ON ATTACK</Badge>: Target Wonder gets +2 this round.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8609,7 +8609,7 @@
       "rulesText": "Equipped Wonder gets +2 and \"Whenever a Hero you control defends, it gets +2 this round.\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8629,7 +8629,7 @@
       "rulesText": "<Badge variant=\"orange\">SACRIFICE FREE</Badge>: Untap target Wonder. Gain 1 energy.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8649,7 +8649,7 @@
       "rulesText": "<Badge variant=\"blue\">ON PLAY</Badge> and <Badge variant=\"orange\">TAP FREE</Badge>: Create a Story token in this or an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8669,7 +8669,7 @@
       "rulesText": "<Badge variant=\"purple\">Awaken</Badge>: +2 and \"<Badge variant=\"red\">deathstrike</Badge>.\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8689,7 +8689,7 @@
       "rulesText": "Whenever an opponent attacks here, you may tap this. If you do, that opponent sacrifices an attacking Wonder.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8709,7 +8709,7 @@
       "rulesText": "Whenever you attack with an equipped Wonder, target enemy in that realm gets -1 that round.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8729,7 +8729,7 @@
       "rulesText": "Equipped Wonder gets \"<Badge variant=\"blue\">ON ROUND START</Badge>: If it's round 5, 6, or 7, you may destroy target Wonder.\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8769,7 +8769,7 @@
       "rulesText": "Equipped Wonder gets +3.<br /><Badge variant=\"blue\">ON ARRIVAL</Badge>: You may destroy target tapped Wonder.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8809,7 +8809,7 @@
       "rulesText": "<Badge variant=\"blue\">ON PLAY</Badge> and <Badge variant=\"orange\">TAP FREE</Badge>: Create a Story token in this or an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -8989,7 +8989,7 @@
       "rulesText": "<Badge variant=\"red\">Guardian</Badge>: Enemies here get -2 this round.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9009,7 +9009,7 @@
       "rulesText": "<Badge variant=\"blue\">ON PLAY</Badge> and <Badge variant=\"orange\">TAP FREE</Badge>: Create a Story token in this or an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9069,7 +9069,7 @@
       "rulesText": "<Badge variant=\"blue\">ON PLAY</Badge> and <Badge variant=\"orange\">TAP FREE</Badge>: Create a Story token in this or an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9189,7 +9189,7 @@
       "rulesText": "Equipped Wonder gets +2 and <Badge variant=\"orange\">TAP FREE</Badge>: Move target enemy to an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9209,7 +9209,7 @@
       "rulesText": "Whenever equipped Wonder moves, sacrifice this. If you do, put 4 -1 counters on target Wonder in an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9249,7 +9249,7 @@
       "rulesText": "<Badge variant=\"blue\">ON ARRIVAL</Badge>: Each player draws a card.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9269,7 +9269,7 @@
       "rulesText": "<Badge variant=\"purple\">Call</Badge>",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9289,7 +9289,7 @@
       "rulesText": "Equipped Wonder gets +1.<br />When equipped Wonder attacks, you may move target defending Wonder with cost 2 or less to an adjacent realm.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9309,7 +9309,7 @@
       "rulesText": "<Badge variant=\"orange\">TAP FREE</Badge>: Move this and target Wonder you control here to target realm.<br /><Badge variant=\"blue\">ON ROUND END</Badge>: If you control a legendary Wonder here, untap this.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9349,7 +9349,7 @@
       "rulesText": "Wonders you control with cost 2 or less have <Badge variant=\"purple\">Heart of a Legend</Badge>.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9369,7 +9369,7 @@
       "rulesText": "<Badge variant=\"orange\">TAP FREE</Badge>: Move target item here.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9389,7 +9389,7 @@
       "rulesText": "Whenever a Wonder you control moves, gain 1 energy.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9429,7 +9429,7 @@
       "rulesText": "Whenever equipped Wonder moves, put a +1 counter on it.<br />If equipped Wonder moved this round, it can't be targeted by opponents or opponents' cards.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9449,7 +9449,7 @@
       "rulesText": "Equipped Wonder gets <Badge variant=\"red\">GUARDIAN</Badge>: +4.<br /><Badge variant=\"blue\">ON ARRIVAL</Badge>: Each opponent loses 1 energy. You gain 1 energy.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9469,7 +9469,7 @@
       "rulesText": "<Badge variant=\"orange\">SACRIFICE FREE</Badge>: Draw 2 cards. Then bury 2 cards from your hand.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9509,7 +9509,7 @@
       "rulesText": "<Badge variant=\"blue\">ON ARRIVAL</Badge>: <Badge variant=\"purple\">Seek 4</Badge> a legendary item with cost 0.<br /><Badge variant=\"red\">Flying</Badge><br /><Badge variant=\"blue\">ON ROUND END</Badge>: Sacrifice this unless you control a Phoenix Quill.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9529,7 +9529,7 @@
       "rulesText": "<Badge variant=\"orange\">SACRIFICE FREE</Badge>: Put a <Badge variant=\"red\">shield</Badge> counter and a <Badge variant=\"red\">protector</Badge> counter on target Wonder.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9549,7 +9549,7 @@
       "rulesText": "Equipped Wonder gets +2.<br />Equipped Wonder gets \"<Badge variant=\"orange\">TAP FREE</Badge>: Whenever a player sacrifices a legendary item this round, you may banish target Wonder.\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9569,7 +9569,7 @@
       "rulesText": "Equipped Wonder gets +3 and \"The first time this attacks each round, defending player sacrifices a card.\"",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9589,7 +9589,7 @@
       "rulesText": "<Badge variant=\"blue\">ON ARRIVAL</Badge>: You may return target legendary item you own from The Abyss to your hand.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {
@@ -9609,7 +9609,7 @@
       "rulesText": "Whenever a player sacrifices a legendary item, put two +1 counters on this.",
       "flavorText": null,
       "isToken": false,
-      "isStoneseeker": false,
+      "isStoneseeker": true,
       "isLoreMythic": false
     },
     {

@@ -13,8 +13,8 @@
  *   card_cost / card_power / card_keywords → wonders-2.0 migration 0007
  *   card_class / card_faction / card_lineage / card_core → migration 0013
  *   abilityName is NOT in deckplanet (it's a vision-ingest field); left null.
- *   isStoneseeker / isLoreMythic are Dragon Cup flags not in deckplanet; left
- *   false and must be curated manually from the Dragon Cup PDF.
+ *   isStoneseeker: derived from card number prefix (see buildStoneSeekerPrefixes).
+ *   isLoreMythic: no clean signal in deckplanet — left false; needs curation.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
@@ -45,7 +45,28 @@ function parseIntOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-function mapCard(card) {
+/**
+ * Stoneseeker cards carry "Stoneseeker" in their card_class. Each Stoneseeker
+ * character has a unique card number prefix (e.g. EEA, KSA, TFA) and their
+ * associated items/tokens share that prefix. Build the prefix set from the
+ * data rather than hardcoding it so future Stoneseekers are picked up
+ * automatically.
+ */
+function buildStoneSeekerPrefixes(cards) {
+  const prefixes = new Set();
+  for (const card of cards) {
+    if ((card.card_class ?? []).includes("Stoneseeker")) {
+      // "EEA-1" → "EEA", "KSA-1" → "KSA", etc.
+      const prefix = card.card_number.replace(/-.*$/, "");
+      prefixes.add(prefix);
+    }
+  }
+  return prefixes;
+}
+
+function mapCard(card, stoneSeekerPrefixes) {
+  const prefix = card.card_number.replace(/-.*$/, "");
+  const isStoneseeker = stoneSeekerPrefixes.has(prefix);
   return {
     cardNumber: card.card_number,
     name: card.card_name,
@@ -69,8 +90,8 @@ function mapCard(card) {
     flavorText: card.card_flavor_text ?? null,
     // Flags
     isToken: card.card_type === "Token",
-    // Dragon Cup flags — not derivable from deckplanet; curate from the PDF.
-    isStoneseeker: false,
+    isStoneseeker,
+    // isLoreMythic has no dedicated field in deckplanet. Curate from Dragon Cup PDF.
     isLoreMythic: false,
   };
 }
@@ -80,6 +101,10 @@ const published = raw.filter((c) => c.status === "published");
 
 const existence = published.filter((c) => c.card_series === "Existence");
 const cots = published.filter((c) => c.card_series === "Call of the Stones");
+
+// Stoneseeker prefixes are derived across all cards (Stoneseekers are in CotS
+// but their tokens appear in both sets).
+const stoneSeekerPrefixes = buildStoneSeekerPrefixes(published);
 
 mkdirSync(OUTPUT_DIR, { recursive: true });
 
@@ -100,7 +125,7 @@ writeFileSync(
         releaseDate: "2024-06-01",
         totalCards: existence.length,
       },
-      cards: existence.map(mapCard),
+      cards: existence.map((c) => mapCard(c, stoneSeekerPrefixes)),
     },
     null,
     2
@@ -125,7 +150,7 @@ writeFileSync(
         releaseDate: "2025-03-01",
         totalCards: cots.length,
       },
-      cards: cots.map(mapCard),
+      cards: cots.map((c) => mapCard(c, stoneSeekerPrefixes)),
     },
     null,
     2
