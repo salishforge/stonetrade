@@ -11,16 +11,16 @@
  *
  * The API has no pagination and no platform filter — callers must filter
  * search results by `console-name` to scope to the correct game/set.
+ *
+ * Transport: Cloudflare on pricecharting.com uses TLS fingerprinting that
+ * blocks Node.js fetch regardless of User-Agent. curl bypasses it because
+ * its TLS stack presents a different fingerprint. HTTP calls here exec curl
+ * as a subprocess. On Vercel (production) fetch works because Vercel IPs
+ * are not flagged — the curl path is only needed on self-hosted / VPS.
  */
+import { execFileSync } from "node:child_process";
 
 const BASE_URL = "https://www.pricecharting.com/api";
-
-// Cloudflare bot-protection on pricecharting.com blocks the default Node.js
-// fetch User-Agent. A browser UA passes the challenge.
-const HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-};
 
 export interface PricechartingProduct {
   id: string;
@@ -40,17 +40,20 @@ export function isPricechartingConfigured(): boolean {
   return !!process.env.PRICECHARTING_API_TOKEN;
 }
 
+function curlGet(url: string): unknown {
+  const body = execFileSync("curl", ["-sf", "--max-time", "15", url], {
+    encoding: "utf8",
+  });
+  return JSON.parse(body);
+}
+
 /**
  * Search PriceCharting by name. Returns up to ~25 results with no
  * platform filter — caller must filter by `console-name`.
  */
 export async function searchProducts(query: string): Promise<PricechartingProduct[]> {
   const params = new URLSearchParams({ t: getToken(), q: query });
-  const res = await fetch(`${BASE_URL}/products?${params}`, { headers: HEADERS });
-  if (!res.ok) {
-    throw new Error(`PriceCharting search ${res.status}: ${await res.text()}`);
-  }
-  const data = (await res.json()) as { products?: PricechartingProduct[] };
+  const data = curlGet(`${BASE_URL}/products?${params}`) as { products?: PricechartingProduct[] };
   return data.products ?? [];
 }
 
@@ -60,9 +63,5 @@ export async function searchProducts(query: string): Promise<PricechartingProduc
  */
 export async function getProductById(id: string): Promise<PricechartingProduct> {
   const params = new URLSearchParams({ t: getToken(), id });
-  const res = await fetch(`${BASE_URL}/product?${params}`, { headers: HEADERS });
-  if (!res.ok) {
-    throw new Error(`PriceCharting product ${res.status}: ${await res.text()}`);
-  }
-  return res.json() as Promise<PricechartingProduct>;
+  return curlGet(`${BASE_URL}/product?${params}`) as PricechartingProduct;
 }
