@@ -15,6 +15,13 @@
 
 const BASE_URL = "https://www.pricecharting.com/api";
 
+// Cloudflare bot-protection on pricecharting.com blocks the default Node.js
+// fetch User-Agent. A browser UA passes the challenge.
+const HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+};
+
 export interface PricechartingProduct {
   id: string;
   "product-name": string;
@@ -39,7 +46,7 @@ export function isPricechartingConfigured(): boolean {
  */
 export async function searchProducts(query: string): Promise<PricechartingProduct[]> {
   const params = new URLSearchParams({ t: getToken(), q: query });
-  const res = await fetch(`${BASE_URL}/products?${params}`);
+  const res = await fetch(`${BASE_URL}/products?${params}`, { headers: HEADERS });
   if (!res.ok) {
     throw new Error(`PriceCharting search ${res.status}: ${await res.text()}`);
   }
@@ -53,7 +60,7 @@ export async function searchProducts(query: string): Promise<PricechartingProduc
  */
 export async function getProductById(id: string): Promise<PricechartingProduct> {
   const params = new URLSearchParams({ t: getToken(), id });
-  const res = await fetch(`${BASE_URL}/product?${params}`);
+  const res = await fetch(`${BASE_URL}/product?${params}`, { headers: HEADERS });
   if (!res.ok) {
     throw new Error(`PriceCharting product ${res.status}: ${await res.text()}`);
   }
