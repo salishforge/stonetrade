@@ -29,7 +29,7 @@ import { prisma } from "@/lib/prisma";
 import { searchProducts, getProductById, isPricechartingConfigured, type PricechartingProduct } from "./client";
 import { recalculateCardValue } from "@/lib/pricing/recalculate";
 
-const RATE_LIMIT_MS = 250;
+const RATE_LIMIT_MS = 1000;
 
 export interface CardForSync {
   id: string;

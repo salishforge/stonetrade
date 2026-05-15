@@ -40,11 +40,27 @@ export function isPricechartingConfigured(): boolean {
   return !!process.env.PRICECHARTING_API_TOKEN;
 }
 
-function curlGet(url: string): unknown {
-  const body = execFileSync("curl", ["-sf", "--max-time", "15", url], {
-    encoding: "utf8",
-  });
-  return JSON.parse(body);
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+// Retry once on failure with a 3-second backoff. PriceCharting's Cloudflare
+// layer rate-limits rapid bulk requests; a brief pause is enough to recover.
+async function curlGet(url: string): Promise<unknown> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const body = execFileSync("curl", ["-sf", "--max-time", "20", url], {
+        encoding: "utf8",
+      });
+      return JSON.parse(body);
+    } catch (err) {
+      if (attempt === 0) {
+        await sleep(3000);
+        continue;
+      }
+      throw err;
+    }
+  }
 }
 
 /**
@@ -53,7 +69,7 @@ function curlGet(url: string): unknown {
  */
 export async function searchProducts(query: string): Promise<PricechartingProduct[]> {
   const params = new URLSearchParams({ t: getToken(), q: query });
-  const data = curlGet(`${BASE_URL}/products?${params}`) as { products?: PricechartingProduct[] };
+  const data = (await curlGet(`${BASE_URL}/products?${params}`)) as { products?: PricechartingProduct[] };
   return data.products ?? [];
 }
 
@@ -63,5 +79,5 @@ export async function searchProducts(query: string): Promise<PricechartingProduc
  */
 export async function getProductById(id: string): Promise<PricechartingProduct> {
   const params = new URLSearchParams({ t: getToken(), id });
-  return curlGet(`${BASE_URL}/product?${params}`) as PricechartingProduct;
+  return (await curlGet(`${BASE_URL}/product?${params}`)) as PricechartingProduct;
 }
