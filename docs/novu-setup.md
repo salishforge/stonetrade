@@ -17,11 +17,10 @@ deliver notifications.
 - `src/app/api/novu/route.ts` — bridge endpoint Novu Cloud calls to discover
   workflows and execute step resolvers. `serve()` from `@novu/framework/next`.
 - `src/components/notifications/NotificationBell.tsx` — header bell + popover
-  using `@novu/react`'s headless `<Bell>` and `<Notifications>` wrapped in a
-  Base UI `<Popover>`, themed to match the warm-backroom palette. Returns
-  `null` without `NEXT_PUBLIC_NOVU_APP_IDENTIFIER`. Set
-  `NEXT_PUBLIC_NOVU_USE_INBOX=true` to fall back to the bundled `<Inbox>` for
-  A/B comparison during the rollout.
+  using `@novu/react`'s bundled `<Inbox>`, themed via `inboxDarkTheme` plus
+  our CSS variables. Returns `null` without `NEXT_PUBLIC_NOVU_APP_IDENTIFIER`.
+  (The original P4 custom-popover ambition is regressed; see docs/handoff.md
+  for the rebuild path using `useCounts()` + `useNotifications()` hooks.)
 - `src/app/layout.tsx` — bell placed beside `<UserMenu>` in the header.
 - `src/app/api/stripe/webhook/route.ts` — `handleCheckoutCompleted` triggers
   `order-paid` (buyer) and `listing-sold` (seller). Stripe's `payment_intent`
@@ -56,8 +55,6 @@ var values listed below.
 ```
 NOVU_API_KEY=<secret key from step 2>
 NEXT_PUBLIC_NOVU_APP_IDENTIFIER=<application identifier from step 2>
-# Optional: A/B fallback to the bundled <Inbox> for visual comparison
-NEXT_PUBLIC_NOVU_USE_INBOX=
 ```
 
 Both `NOVU_API_KEY` and `NEXT_PUBLIC_NOVU_APP_IDENTIFIER` are listed in

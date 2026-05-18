@@ -41,9 +41,23 @@ headless primitives. P5 moved all five workflows into code via
 
 ### P4 — custom bell on headless primitives
 
+**Status: regressed.** The custom popover ran into an unbuildable
+constraint: `<Bell>`, `<Notifications>`, and `<InboxContent>` all *consume*
+`NovuUIContext`, but the only public component that *provides* it is
+`<Inbox>` itself (the `<NovuUI>` provider is not exported). My original
+draft wrapped them in `<NovuProvider>` and hit a runtime crash —
+`Component must be wrapped with NovuUIContext`. Reverted to `<Inbox>` with
+the `appearance` API for theming so P1's smoke test unblocks.
+
 | File | Change |
 |---|---|
-| `src/components/notifications/NotificationBell.tsx` | Rewritten: `<NovuProvider>` wraps a `<Popover>` (Base UI) containing `<Bell>` (custom render with gold unread badge) and `<Notifications>`. `NEXT_PUBLIC_NOVU_USE_INBOX=true` falls back to the bundled `<Inbox>` for A/B comparison |
+| `src/components/notifications/NotificationBell.tsx` | `<Inbox>` themed via `inboxDarkTheme` + our CSS variables. The `NEXT_PUBLIC_NOVU_USE_INBOX` env-flag fallback was removed (no longer has a non-Inbox path to A/B against) |
+
+**P4-redo path** (future task): rebuild using `useCounts()` +
+`useNotifications()` hooks directly under `<NovuProvider>` — those hooks
+need only SDK context, not UI context, so a Base UI popover wrapper
+becomes feasible. Half-day of work; deferred until visual fit of the
+bundled `<Inbox>` is judged insufficient.
 
 ### P5 — code-defined workflows
 
