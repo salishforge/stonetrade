@@ -2,13 +2,19 @@
 export const PRICE_WEIGHTS: Record<string, number> = {
   COMPLETED_SALE: 0.40,
   BUYLIST_OFFER: 0.20,
+  // Wonders Trading Post — public community marketplace with actual
+  // buyer-seller transactions for our exact game. Weighted on par with
+  // SELLER_LISTING / COMMUNITY_POLL while we calibrate; promote once we
+  // confirm volume + accuracy track real value over a few months.
+  WONDERSTRADINGPOST: 0.15,
   SELLER_LISTING: 0.10,
   COMMUNITY_POLL: 0.10,
   EBAY_SOLD: 0.10,
-  // PriceCharting loose-price is a ~30-day rolling average of eBay sold
-  // data — more stable than individual EBAY_SOLD points but less granular.
-  // Calibrate after first real sync runs.
-  PRICECHARTING: 0.15,
+  // PriceCharting wotf coverage measured at <1% on a full-catalog sweep
+  // (~19 matches across 4,790 cards). Demoted from 0.15 → 0.03 to neutralize
+  // its influence without ripping the source out; re-evaluate per-gameSlug
+  // when broader-coverage TCGs (Pokémon, MtG, OP) come online.
+  PRICECHARTING: 0.03,
   // eBay active listings are asking prices, not transactions — they
   // anchor the high end without overpowering real sales data.
   EBAY_LISTED: 0.05,

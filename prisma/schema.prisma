@@ -17,6 +17,7 @@ enum PriceSource {
   EBAY_SOLD
   EBAY_LISTED
   PRICECHARTING
+  WONDERSTRADINGPOST
   COMMUNITY_POLL
   BUYLIST_OFFER
   MANUAL_REPORT
@@ -377,12 +378,13 @@ model PriceDataPoint {
   treatment String
 
   // Source-specific references
-  ebayListingId          String?
-  ebayItemUrl            String?
-  pricechartingProductId String?
-  listingId              String?
-  pollId                 String?
-  reportedBy             String?
+  ebayListingId            String?
+  ebayItemUrl              String?
+  pricechartingProductId   String?
+  wonderstradingpostListingId String?
+  listingId                String?
+  pollId                   String?
+  reportedBy               String?
 
   verified  Boolean  @default(false)
   createdAt DateTime @default(now())
