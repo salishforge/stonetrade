@@ -13,10 +13,13 @@ jobs:
         env:
           BASE_URL: ${{ secrets.STONETRADE_BASE_URL }}
           CRON_TOKEN: ${{ secrets.STONETRADE_CRON_TOKEN }}
+        # See companion comment in recompute-stale.yml for the rationale —
+        # skip-on-missing-secrets is intentional pre-deploy; once secrets
+        # are configured this becomes the live evaluation path.
         run: |
           if [ -z "$BASE_URL" ] || [ -z "$CRON_TOKEN" ]; then
-            echo "STONETRADE_BASE_URL and STONETRADE_CRON_TOKEN must be set as repo secrets"
-            exit 1
+            echo "::warning::Skipping alerts evaluation — STONETRADE_BASE_URL and/or STONETRADE_CRON_TOKEN repo secret not set. Configure both once the app is deployed."
+            exit 0
           fi
           curl -fsS -X POST \
             "$BASE_URL/api/admin/alerts/evaluate" \

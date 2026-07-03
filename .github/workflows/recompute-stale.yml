@@ -13,10 +13,16 @@ jobs:
         env:
           BASE_URL: ${{ secrets.STONETRADE_BASE_URL }}
           CRON_TOKEN: ${{ secrets.STONETRADE_CRON_TOKEN }}
+        # Skip-on-missing-secrets is intentional during pre-deploy. The
+        # secrets are set in the repo's GitHub Actions config once the
+        # app is reachable from GitHub-hosted runners (Settings → Secrets
+        # and variables → Actions). Until then, exiting 0 with a
+        # ::warning:: surfaces a yellow annotation on the Actions tab
+        # without flooding the notification inbox every hour.
         run: |
           if [ -z "$BASE_URL" ] || [ -z "$CRON_TOKEN" ]; then
-            echo "STONETRADE_BASE_URL and STONETRADE_CRON_TOKEN must be set as repo secrets"
-            exit 1
+            echo "::warning::Skipping recompute-stale — STONETRADE_BASE_URL and/or STONETRADE_CRON_TOKEN repo secret not set. Configure both once the app is deployed."
+            exit 0
           fi
           curl -fsS -X POST \
             "$BASE_URL/api/admin/recompute-stale?olderThanMinutes=60&maxCards=500" \
