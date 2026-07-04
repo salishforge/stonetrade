@@ -15,11 +15,13 @@ The five-part shopping-experience plan, ranked by leverage on the wedge:
 
 | # | Feature | Status | Reinforces wedge by… |
 |---|---|---|---|
-| 1 | Attribution panel ("Why is this card moving?") | **SHIPPED** | Converting our schema work into a story buyers can feel |
-| 2 | Meta-shift alerts (UI) | **SHIPPED** | Closing the retention loop on the engine-signal moat |
-| 3 | Mystery packs with guaranteed minimums | PLAN | Format-level wedge — only possible because composite values exist |
+| 1 | Attribution panel ("Why is this card moving?") | **SHIPPED** (#15) | Converting our schema work into a story buyers can feel |
+| 2 | Meta-shift alerts (UI) | **SHIPPED** (#15) | Closing the retention loop on the engine-signal moat |
+| 3 | Mystery packs with guaranteed minimums | **PHASE 1 SHIPPED** (#20) · P2/P3 next | Format-level wedge — only possible because composite values exist |
 | 4 | "Build this deck for $X" bundles | OUTLINE | Multi-card pricing — only possible with platform sync |
 | 5 | Peer-consensus listings | OUTLINE | Trust signal for thin-market cards — answers "no sales history" |
+
+> **Mystery Packs status:** Phase 1 (schema + `tiers` validators + floor/EV math + tests) landed in #20. `MysteryPack.tiers` shape, `computePackEconomics()`, and the `RESERVED_FOR_PACK` listing status all exist and are unit-tested. **Phase 2 (builder UI) and Phase 3 (buyer surface) are the next differentiation work** — see `mystery-packs.md` §6.
 
 What this plan **excludes** and why:
 
