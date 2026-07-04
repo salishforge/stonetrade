@@ -167,10 +167,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     if (paymentIntentId) {
       try {
-        await getStripe().refunds.create({
-          payment_intent: paymentIntentId,
-          reason: "requested_by_customer",
-        });
+        // Stripe-level idempotency on the refund call. If this webhook is
+        // re-delivered (which Stripe does on receiver failure) we don't want
+        // to double-refund the buyer. Idempotency key is derived from the
+        // payment intent and a fixed scope tag so retries collapse on Stripe's
+        // side and we get back the same refund object.
+        await getStripe().refunds.create(
+          {
+            payment_intent: paymentIntentId,
+            reason: "requested_by_customer",
+          },
+          { idempotencyKey: `oversold-refund:${paymentIntentId}` },
+        );
       } catch (err) {
         console.error("Refund failed for oversold order:", order.id, err);
       }

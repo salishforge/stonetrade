@@ -15,6 +15,7 @@
  *     `EBAY_SOLD`.
  */
 import { Buffer } from "node:buffer";
+import { safeFetch } from "@/lib/http/safe-fetch";
 
 type EbayEnv = "production" | "sandbox";
 
@@ -54,7 +55,7 @@ async function getAccessToken(scopes: string[]): Promise<string> {
 
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
-  const res = await fetch(HOSTS[ENV].oauth, {
+  const res = await safeFetch(HOSTS[ENV].oauth, {
     method: "POST",
     headers: {
       Authorization: `Basic ${basic}`,
@@ -111,7 +112,7 @@ export async function searchActiveListings(
     params.set("filter", `conditions:{${options.conditions.join("|")}}`);
   }
 
-  const res = await fetch(`${HOSTS[ENV].api}/buy/browse/v1/item_summary/search?${params}`, {
+  const res = await safeFetch(`${HOSTS[ENV].api}/buy/browse/v1/item_summary/search?${params}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       "X-EBAY-C-MARKETPLACE-ID": MARKETPLACE_ID,
@@ -173,7 +174,7 @@ export async function searchSoldItems(
     filter: `lastSoldDate:[${startDate}..]`,
   });
 
-  const res = await fetch(
+  const res = await safeFetch(
     `${HOSTS[ENV].api}/buy/marketplace_insights/v1_beta/item_sales/search?${params}`,
     {
       headers: {

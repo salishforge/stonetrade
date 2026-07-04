@@ -3,6 +3,8 @@
  * Interface-driven — implement when partnership/API access is established.
  */
 
+import { safeFetch } from "@/lib/http/safe-fetch";
+
 const BASE_URL = process.env.CARDEIO_API_BASE_URL ?? "https://api.carde.io";
 const API_KEY = process.env.CARDEIO_API_KEY;
 
@@ -51,7 +53,7 @@ function getHeaders(): HeadersInit {
  * Sync card database from Carde.io (images, official data).
  */
 export async function syncCardDatabase(): Promise<CardeioCard[]> {
-  const res = await fetch(`${BASE_URL}/api/v1/cards?game=wotf&limit=500`, {
+  const res = await safeFetch(`${BASE_URL}/api/v1/cards?game=wotf&limit=500`, {
     headers: getHeaders(),
   });
   if (!res.ok) throw new Error(`Carde.io API error: ${res.status}`);
@@ -62,7 +64,7 @@ export async function syncCardDatabase(): Promise<CardeioCard[]> {
  * Get recent tournament results for price impact analysis.
  */
 export async function getRecentTournaments(gameSlug: string): Promise<TournamentResult[]> {
-  const res = await fetch(`${BASE_URL}/api/v1/tournaments?game=${gameSlug}&limit=10`, {
+  const res = await safeFetch(`${BASE_URL}/api/v1/tournaments?game=${gameSlug}&limit=10`, {
     headers: getHeaders(),
   });
   if (!res.ok) throw new Error(`Carde.io API error: ${res.status}`);

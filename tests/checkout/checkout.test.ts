@@ -171,8 +171,15 @@ describe("POST /api/stripe/checkout", () => {
     expect(reloadedListing?.quantitySold).toBe(4);
   });
 
-  it("line items: per-unit price × quantity, plus shipping when > 0", async () => {
-    // listing.price=10.00, order.quantity=2, order.shipping=0. Update shipping to 5.
+  it("line items: snapshotted subtotal as a single line, plus shipping when > 0", async () => {
+    // Hardening pass: the card line is now a single quantity=1 line with the
+    // order's snapshotted subtotal as unit_amount, NOT listing.price ×
+    // order.quantity. This prevents a seller from raising the listing price
+    // between order create and checkout and having the buyer pay the new
+    // price. The product name carries the "×N" suffix when multi-unit so
+    // the buyer sees what they're getting.
+    //
+    // seed sets listing.price=10.00, order.quantity=2, so order.subtotal=20.00.
     const { order, buyer } = await seed();
     await prisma.order.update({ where: { id: order.id }, data: { shipping: "5.00", total: "25.00" } });
     setMockUser(buyer.id);
@@ -182,11 +189,11 @@ describe("POST /api/stripe/checkout", () => {
     const args = sessionsCreateMock.mock.calls[0][0];
     expect(args.line_items).toHaveLength(2);
 
-    // Card line: $10.00 × 2 (per-unit pricing — Stripe shows correct unit price)
-    expect(args.line_items[0].price_data.unit_amount).toBe(1000);
-    expect(args.line_items[0].quantity).toBe(2);
+    // Card line: $20.00 × 1 (snapshot subtotal, quantity collapsed)
+    expect(args.line_items[0].price_data.unit_amount).toBe(2000);
+    expect(args.line_items[0].quantity).toBe(1);
     expect(args.line_items[0].price_data.currency).toBe("usd");
-    expect(args.line_items[0].price_data.product_data.name).toBe("Test Card");
+    expect(args.line_items[0].price_data.product_data.name).toBe("Test Card ×2");
 
     // Shipping line: $5.00 × 1
     expect(args.line_items[1].price_data.unit_amount).toBe(500);
@@ -202,7 +209,9 @@ describe("POST /api/stripe/checkout", () => {
 
     const args = sessionsCreateMock.mock.calls[0][0];
     expect(args.line_items).toHaveLength(1);
-    expect(args.line_items[0].price_data.product_data.name).toBe("Test Card");
+    // Default seed creates an order with quantity=2; product name carries
+    // the multi-unit suffix.
+    expect(args.line_items[0].price_data.product_data.name).toBe("Test Card ×2");
   });
 
   it("description renders set name + treatment + condition joined with bullets", async () => {

@@ -11,6 +11,19 @@ vi.mock("@/lib/auth", () => ({
     if (!user) throw new Error("Mock user not found");
     return user;
   },
+  // The mocked admin gate resolves the same mock user but only succeeds when
+  // role === "ADMIN" — same shape as the real getAdminUser. Tests that hit
+  // /api/prices/recalculate (the one route in this file gated on admin) seed
+  // a user with role: "ADMIN" before calling.
+  getAdminUser: async () => {
+    if (!currentMockUserId) return null;
+    const user = await prisma.user.findUnique({ where: { id: currentMockUserId } });
+    if (!user || user.role !== "ADMIN") return null;
+    return user;
+  },
+  // No bearer token set in unit tests; cron-token paths are exercised in
+  // tests/admin/recompute-stale.test.ts.
+  isCronAuthorized: () => false,
 }));
 
 let pricesGET: typeof import("@/app/api/prices/route").GET;
@@ -153,8 +166,17 @@ describe("POST /api/prices/recalculate", () => {
     });
   }
 
+  async function adminMockUser(): Promise<string> {
+    const admin = await prisma.user.create({
+      data: { email: "admin@example.com", username: "admin", role: "ADMIN" },
+    });
+    setMockUser(admin.id);
+    return admin.id;
+  }
+
   it("recalculates a single card when cardId provided", async () => {
     const { card } = await seed();
+    await adminMockUser();
     await prisma.priceDataPoint.create({ data: { cardId: card.id, source: "COMPLETED_SALE", price: "10.00", condition: "NEAR_MINT", treatment: "Classic Paper", verified: true } });
 
     const res = await recalcPOST(recalcReq({ cardId: card.id }));
@@ -165,11 +187,23 @@ describe("POST /api/prices/recalculate", () => {
 
   it("recalculates all cards when no cardId provided", async () => {
     const { card } = await seed();
+    await adminMockUser();
     await prisma.priceDataPoint.create({ data: { cardId: card.id, source: "COMPLETED_SALE", price: "10.00", condition: "NEAR_MINT", treatment: "Classic Paper", verified: true } });
 
     const res = await recalcPOST(recalcReq());
     expect(res.status).toBe(200);
     const data = (await res.json()).data;
     expect(data.updated).toBe(1);
+  });
+
+  it("403 when caller is neither admin nor cron-authorized", async () => {
+    const { card } = await seed();
+    // Plain user, no admin role.
+    const user = await prisma.user.create({ data: { email: "plain@example.com", username: "plain" } });
+    setMockUser(user.id);
+    await prisma.priceDataPoint.create({ data: { cardId: card.id, source: "COMPLETED_SALE", price: "10.00", condition: "NEAR_MINT", treatment: "Classic Paper", verified: true } });
+
+    const res = await recalcPOST(recalcReq({ cardId: card.id }));
+    expect(res.status).toBe(403);
   });
 });

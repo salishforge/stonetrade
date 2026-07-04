@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import Decimal from "decimal.js";
 import { z } from "zod/v4";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
+
+/**
+ * Convert a money value to integer cents for Stripe. Goes through
+ * decimal.js so we don't lose precision in `Number(...) * 100` and don't
+ * have to trust `Math.round` to do the right thing on values that round
+ * away from zero. ROUND_HALF_EVEN ("banker's rounding") matches Stripe's
+ * documented rounding behaviour.
+ */
+function toCents(value: Decimal | string | number): number {
+  return new Decimal(value.toString())
+    .times(100)
+    .toDecimalPlaces(0, Decimal.ROUND_HALF_EVEN)
+    .toNumber();
+}
 
 const checkoutSchema = z.object({
   orderId: z.string().cuid(),
@@ -76,16 +91,22 @@ export async function POST(request: NextRequest) {
   ].filter(Boolean);
   const description = descriptionParts.length > 0 ? descriptionParts.join(" • ") : undefined;
 
+  // Use the snapshotted subtotal (taken at order creation time) as a single
+  // line-item with quantity=1, NOT order.listing.price × order.quantity.
+  // Otherwise a seller can raise the listing price between order creation
+  // and the buyer hitting "pay" and the buyer ends up paying the new price.
+  // Since order.subtotal already encodes price × quantity that the buyer
+  // agreed to, expressing it as one line item with quantity=1 is honest.
   lineItems.push({
     price_data: {
       currency: "usd",
       product_data: {
-        name: cardName,
+        name: order.quantity > 1 ? `${cardName} ×${order.quantity}` : cardName,
         ...(description ? { description } : {}),
       },
-      unit_amount: Math.round(Number(order.listing.price) * 100),
+      unit_amount: toCents(order.subtotal),
     },
-    quantity: order.quantity,
+    quantity: 1,
   });
 
   if (order.shipping.gt(0)) {
@@ -93,7 +114,7 @@ export async function POST(request: NextRequest) {
       price_data: {
         currency: "usd",
         product_data: { name: "Shipping" },
-        unit_amount: Math.round(Number(order.shipping) * 100),
+        unit_amount: toCents(order.shipping),
       },
       quantity: 1,
     });
@@ -103,7 +124,7 @@ export async function POST(request: NextRequest) {
     mode: "payment",
     line_items: lineItems,
     payment_intent_data: {
-      application_fee_amount: Math.round(Number(order.platformFee) * 100),
+      application_fee_amount: toCents(order.platformFee),
       transfer_data: { destination: order.listing.seller.stripeAccountId },
       metadata: { orderId: order.id },
     },
